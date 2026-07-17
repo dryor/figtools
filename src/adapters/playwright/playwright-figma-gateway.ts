@@ -45,7 +45,11 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     url: string,
     run: (page: Page) => Promise<FigmaFetchResult<RawFigmaNode>>
   ): Promise<FigmaFetchResult<RawFigmaNode>> {
-    const browser = await chromium.launch({ headless: true });
+    // headless:true dispara el WAF de Figma (403 "The request could not be
+    // satisfied" vía CloudFront) aun con cookies de sesión válidas; en
+    // headed la misma sesión responde 200. Confirmado corriendo ambos modos
+    // contra una sesión real.
+    const browser = await chromium.launch({ headless: false });
     try {
       const context = await browser.newContext();
       await context.addCookies(JSON.parse(session.credential));
