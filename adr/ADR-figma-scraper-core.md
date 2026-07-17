@@ -1,0 +1,221 @@
+# ADR-figma-scraper-core
+
+## Contexto
+
+Se necesita un core que obtenga información de Figma (nodos y archivos completos)
+sin depender de los rate limits de la REST API / MCP server de Figma en cuentas
+free. El core debe estar desacoplado de cómo se obtienen los datos (scraping vía
+headless browser, hoy con Playwright) y de la interfaz que lo consume (hoy un CLI
+y un MCP server). Los criterios de aceptación de este comportamiento ya están
+definidos en `specs/gestionar_sesion_figma.spec` y `specs/obtener_informacion_figma.spec`.
+
+## Decisión
+
+- **Stack:** TypeScript/Node.
+
+- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters.
+  El core define tres puertos (`SessionStore`, `InteractiveLogin`, `FigmaGateway`)
+  como interfaces; la implementación concreta con Playwright vive fuera del core,
+  en una capa de adapters, y se inyecta. Esto es consecuencia directa de la
+  restricción ya acordada en `/bdd`: el core no debe conocer Playwright ni ningún
+  detalle de cómo se scrapea.
+
+- **Patrón — parseo de URL y construcción del árbol con dedup:** ninguno GoF.
+  Decidir si una URL apunta a un nodo o a un file completo es un branch simple
+  (presencia/ausencia de `node-id`). La deduplicación de nodos compartidos se
+  resuelve con un `Map<id, FigmaNode>` mientras se recorre el árbol: no hay
+  variantes intercambiables que justifiquen Strategy, Factory o Builder.
+
+- **Modelo de errores:** `Result<T, E>` explícito (sin `throw`). Las funciones
+  del core que pueden fallar devuelven `{ ok: true, value }` o
+  `{ ok: false, error }`, donde `error` trae un código constante (string) y un
+  mensaje legible. Se prefirió sobre excepciones nativas para forzar a CLI/MCP a
+  manejar el error en el tipo de retorno en vez de depender de `try/catch`.
+
+- **Volatilidad:**
+  - **Volátil:** el mecanismo de scraping y de sesión (Playwright hoy; podría
+    cambiar si Figma habilita la REST API sin rate limits, o si se cambia de
+    herramienta de scraping). Vive en la capa de adapters, fuera del core.
+  - **Estable:** el contrato de datos (forma del árbol de nodos, reglas de
+    deduplicación de nodos compartidos, reglas de validación de URL). Vive en
+    el core y no depende de cómo se obtienen los datos.
+
+- **Organización — dominio vs. feature:** por dominio. Un único módulo `figma`
+  agrupa sesión + obtención de información, porque comparten el mismo dominio y
+  hoy solo hay un consumidor real (CLI y MCP, ambos wrappers finos sobre el
+  mismo core). No se fragmenta por feature.
+
+- **Relaciones:**
+  - `DERIVES_FROM specs/gestionar_sesion_figma.spec`
+  - `DERIVES_FROM specs/obtener_informacion_figma.spec`
+
+## Estructura de carpetas propuesta
+
+```
+src/
+  figma/                        # dominio, estable
+    core.ts                     # FigmaScraperCore: orquesta validar → parsear → sesión → gateway → armar árbol
+    ports.ts                    # SessionStore, InteractiveLogin, FigmaGateway
+    model.ts                    # FigmaNode, FigmaPage, FigmaFileResult, estilos
+    errors.ts                   # Result<T,E>, FigmaScraperError, códigos
+    build-tree.ts               # armado del árbol + dedup de nodos compartidos
+  adapters/
+    playwright/                 # volátil, aislado del core
+      playwright-gateway.ts     # implementa FigmaGateway
+      playwright-login.ts       # implementa InteractiveLogin
+      cookie-session-store.ts   # implementa SessionStore
+```
+
+## Interfaces
+
+### Diagrama (mermaid)
+
+```mermaid
+flowchart TD
+    CLI[CLI] --> Core[FigmaScraperCore]
+    MCP[MCP Server] --> Core
+
+    Core --> PSession[["Port: SessionStore"]]
+    Core --> PLogin[["Port: InteractiveLogin"]]
+    Core --> PGateway[["Port: FigmaGateway"]]
+    Core --> BuildTree[build-tree.ts]
+
+    ACookie[CookieSessionStore] -.implementa.-> PSession
+    ALogin[PlaywrightLogin] -.implementa.-> PLogin
+    AGateway[PlaywrightFigmaGateway] -.implementa.-> PGateway
+
+    ACookie -.usa.-> Playwright[(Playwright / headless browser)]
+    ALogin -.usa.-> Playwright
+    AGateway -.usa.-> Playwright
+```
+
+### TypeScript
+
+```typescript
+// errors.ts
+export type FigmaScraperErrorCode =
+  | "VALIDATION_EMPTY_URL"
+  | "VALIDATION_NOT_FIGMA_URL"
+  | "NOT_FOUND_OR_NO_ACCESS";
+
+export interface FigmaScraperError {
+  code: FigmaScraperErrorCode;
+  message: string;
+}
+
+export type Result<T, E> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+// model.ts
+export interface CommonStyles {
+  fills?: Paint[];
+  strokes?: Paint[];
+  strokeWeight?: number;
+  cornerRadius?: number;
+  effects?: Effect[];
+  opacity?: number;
+  blendMode?: string;
+}
+
+export interface TypographyStyles {
+  fontFamily: string;
+  fontWeight: number;
+  fontSize: number;
+  textAlignHorizontal: string;
+  textAlignVertical: string;
+  letterSpacing: number;
+  lineHeightPx: number;
+  lineHeightPercent?: number;
+  textCase?: string;
+  textDecoration?: string;
+}
+
+export interface FigmaNode {
+  id: string;
+  name: string;
+  type: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  styles: CommonStyles & { typography?: TypographyStyles };
+  image: File | null;
+  children: Array<FigmaNode | SharedNodeRef>;
+}
+
+export interface SharedNodeRef {
+  ref: string; // id de un nodo en sharedNodes
+}
+
+export interface FigmaPage {
+  id: string;
+  name: string;
+  nodes: FigmaNode[];
+}
+
+export interface FigmaFileResult {
+  pages: FigmaPage[];
+  sharedNodes: Record<string, FigmaNode>;
+}
+
+export type FigmaScrapeResult = FigmaNode | FigmaFileResult;
+
+// ports.ts
+export interface FigmaSession {
+  cookies: string;
+}
+
+export interface SessionStore {
+  getSession(): Promise<FigmaSession | null>;
+  saveSession(session: FigmaSession): Promise<void>;
+}
+
+export interface InteractiveLogin {
+  login(): Promise<FigmaSession>;
+}
+
+export interface FigmaGateway {
+  fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaNode>;
+  fetchFile(fileKey: string, session: FigmaSession): Promise<FigmaFileResult>;
+}
+
+// core.ts
+export interface FigmaScraperCoreDeps {
+  sessionStore: SessionStore;
+  interactiveLogin: InteractiveLogin;
+  gateway: FigmaGateway;
+}
+
+export interface FigmaScraperCore {
+  getFromUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
+  login(): Promise<FigmaSession>;
+}
+
+export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraperCore;
+```
+
+### Usage example
+
+```typescript
+import { createFigmaScraperCore } from "./figma/core";
+import { PlaywrightFigmaGateway } from "./adapters/playwright/playwright-gateway";
+import { PlaywrightLogin } from "./adapters/playwright/playwright-login";
+import { CookieSessionStore } from "./adapters/playwright/cookie-session-store";
+
+const core = createFigmaScraperCore({
+  sessionStore: new CookieSessionStore(),
+  interactiveLogin: new PlaywrightLogin(),
+  gateway: new PlaywrightFigmaGateway(),
+});
+
+const result = await core.getFromUrl(
+  "https://www.figma.com/file/ABC123/Mi-Diseno?node-id=1-23"
+);
+
+if (!result.ok) {
+  // result.error.code: "VALIDATION_EMPTY_URL" | "VALIDATION_NOT_FIGMA_URL" | "NOT_FOUND_OR_NO_ACCESS"
+  console.error(result.error.code, result.error.message);
+} else {
+  const node = result.value as FigmaNode;
+  console.log(node.type, node.children.length);
+}
+```
