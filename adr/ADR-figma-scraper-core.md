@@ -101,11 +101,11 @@ flowchart TD
 ### TypeScript
 
 ```typescript
-// errors.ts
 export type FigmaScraperErrorCode =
   | "VALIDATION_EMPTY_URL"
   | "VALIDATION_NOT_FIGMA_URL"
-  | "NOT_FOUND_OR_NO_ACCESS";
+  | "NOT_FOUND_OR_NO_ACCESS"
+  | "AUTHENTICATION_FAILED";
 
 export interface FigmaScraperError {
   code: FigmaScraperErrorCode;
@@ -116,7 +116,6 @@ export type Result<T, E> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 
-// model.ts
 export interface CommonStyles {
   fills?: Paint[];
   strokes?: Paint[];
@@ -140,7 +139,6 @@ export interface TypographyStyles {
   textDecoration?: string;
 }
 
-// Forma final, ya deduplicada — la que devuelve el core (build-tree.ts).
 export interface FigmaNode {
   id: string;
   name: string;
@@ -153,7 +151,7 @@ export interface FigmaNode {
 }
 
 export interface SharedNodeRef {
-  sharedNodeId: string; // clave dentro de FigmaFileResult.sharedNodes
+  sharedNodeId: string;
 }
 
 export interface FigmaPage {
@@ -169,10 +167,8 @@ export interface FigmaFileResult {
 
 export type FigmaScrapeResult = FigmaNode | FigmaFileResult;
 
-// Forma cruda — la que trae el gateway directo de Figma, antes de resolver
-// nodos compartidos. Un mismo nodo puede aparecer repetido bajo distintos
-// padres; distinguirla de FigmaNode es lo que mantiene la deduplicación como
-// responsabilidad del core y no del adapter de scraping.
+// Separado de FigmaNode para que la dedup la haga build-tree.ts (core), no
+// el gateway (adapter): un mismo nodo puede repetirse bajo distintos padres.
 export interface RawFigmaNode {
   id: string;
   name: string;
@@ -188,7 +184,6 @@ export interface RawFigmaFile {
   pages: Array<{ id: string; name: string; nodes: RawFigmaNode[] }>;
 }
 
-// ports.ts
 export interface FigmaSession {
   cookies: string;
 }
@@ -210,20 +205,14 @@ export type FigmaFetchResult<T> =
   | { status: "not-found-or-no-access" }
   | { status: "session-expired" };
 
-// Devuelve tipos Raw*: el gateway solo sabe traer datos de Figma, no
-// deduplicarlos — ese es el secreto de build-tree.ts, no el suyo.
 export interface FigmaGateway {
   fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
   fetchFile(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaFile>>;
 }
 
-// build-tree.ts — única responsable de convertir lo crudo del gateway en el
-// árbol final deduplicado. Es donde vive el Map<id, FigmaNode> mencionado
-// en la sección de Decisión.
 export function resolveNode(raw: RawFigmaNode): FigmaNode;
 export function resolveFile(raw: RawFigmaFile): FigmaFileResult;
 
-// core.ts
 export interface FigmaScraperCoreDeps {
   sessionStore: SessionStore;
   interactiveLogin: InteractiveLogin;
@@ -232,22 +221,21 @@ export interface FigmaScraperCoreDeps {
 
 export interface FigmaScraperCore {
   /**
-   * Resuelve la URL (nodo o file) y devuelve el resultado.
-   * reauthenticate() NO es un paso previo obligatorio: si no hay sesión
-   * guardada, o si el gateway responde "session-expired", resolveUrl dispara
-   * el login interactivo por su cuenta, guarda la sesión nueva, y reintenta
-   * esta misma solicitud una vez antes de devolver el resultado (spec: "La
-   * sesión expira durante una solicitud").
+   * No requiere reauthenticate() antes: si no hay sesión guardada, o si el
+   * gateway responde "session-expired", dispara el login por su cuenta,
+   * guarda la sesión nueva vía sessionStore, y reintenta esta misma
+   * solicitud antes de devolver el resultado (spec: "La sesión expira
+   * durante una solicitud").
    */
   resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
 
   /**
-   * Login explícito e independiente de resolveUrl. Solo hace falta llamarlo
-   * cuando el caller quiere forzar un nuevo login aunque la sesión actual
-   * siga siendo válida (spec: "Iniciar sesión de nuevo aunque la sesión
-   * actual siga siendo válida") — reemplaza la sesión existente.
+   * Independiente de resolveUrl: fuerza un login nuevo aunque la sesión
+   * actual siga siendo válida (spec: "Iniciar sesión de nuevo..."). Guarda
+   * la sesión resultante vía sessionStore antes de devolverla, para que
+   * resolveUrl la use en llamadas siguientes.
    */
-  reauthenticate(): Promise<FigmaSession>;
+  reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
 
 export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraperCore;
@@ -267,34 +255,24 @@ const core = createFigmaScraperCore({
   gateway: new PlaywrightFigmaGateway(),
 });
 
-// 1) Primer uso: no hay sesión guardada todavía.
-// resolveUrl NO necesita un reauthenticate() previo: dispara el login
-// interactivo por su cuenta y, al terminar, completa esta misma solicitud.
-const first = await core.resolveUrl(
+// Primer uso, sesión expirada, o sesión válida: mismo método en los tres
+// casos, resolveUrl decide solo qué hacer con la sesión.
+const result = await core.resolveUrl(
   "https://www.figma.com/file/ABC123/Mi-Diseno?node-id=1-23"
 );
 
-// 2) Usos posteriores: hay sesión válida guardada, se reutiliza sola
-// (mismo método, sin ninguna llamada extra).
-const second = await core.resolveUrl(
-  "https://www.figma.com/file/ABC123/Mi-Diseno"
-);
-
-if (!second.ok) {
-  // second.error.code: "VALIDATION_EMPTY_URL" | "VALIDATION_NOT_FIGMA_URL" | "NOT_FOUND_OR_NO_ACCESS"
-  console.error(second.error.code, second.error.message);
+if (!result.ok) {
+  console.error(result.error.code, result.error.message);
 } else {
-  const file = second.value as FigmaFileResult;
-  console.log(file.pages.length);
+  const node = result.value as FigmaNode;
+  console.log(node.type, node.children.length);
 }
 
-// 3) Si la sesión guardada expiró a mitad de una solicitud, resolveUrl repite
-// este mismo flujo del punto 1 internamente (login → reintento) sin que el
-// caller haga nada distinto — por eso no aparece como un caso aparte acá.
-
-// 4) Forzar reautenticación aunque la sesión actual siga siendo válida
-// (ej. un comando explícito "figma-scraper login" en el CLI):
-const newSession = await core.reauthenticate();
+// Comando explícito "figma-scraper login" en el CLI, por ejemplo.
+const reauth = await core.reauthenticate();
+if (!reauth.ok) {
+  console.error(reauth.error.code, reauth.error.message);
+}
 ```
 
 ## Ver también
