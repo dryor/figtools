@@ -35,11 +35,12 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   detalle volátil en un tipo que el core y los tres puertos comparten
   directamente.
 
-- **Patrón — parseo de URL y construcción del árbol con dedup:** ninguno GoF.
-  Decidir si una URL apunta a un nodo o a un file completo es un branch simple
-  (presencia/ausencia de `node-id`). La deduplicación de nodos compartidos se
-  resuelve con un `Map<id, FigmaNode>` mientras se recorre el árbol: no hay
-  variantes intercambiables que justifiquen Strategy, Factory o Builder.
+- **Patrón — parseo de URL:** ninguno GoF. Decidir si una URL apunta a un nodo
+  o a un file completo es un branch simple (presencia/ausencia de `node-id`).
+  Cada instancia de un componente ya es, en el modelo real de Figma, un nodo
+  completo e independiente (puede tener overrides propios) — no hay datos
+  geométricos repetidos que deduplicar, así que `build-tree.ts` no tiene
+  lógica de dedup: solo mapea de la forma cruda a la forma final.
 
 - **Modelo de errores:** `Result<T, E>` explícito (sin `throw`). Las funciones
   del core que pueden fallar devuelven `{ ok: true, value }` o
@@ -52,20 +53,20 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
     cambiar si Figma habilita la REST API sin rate limits, o si se cambia de
     herramienta de scraping). Vive en la capa de adapters, fuera del core.
   - **Estable:** el contrato de datos (forma del árbol de nodos, reglas de
-    deduplicación de nodos compartidos, reglas de validación de URL). Vive en
-    el core y no depende de cómo se obtienen los datos.
+    validación de URL). Vive en el core y no depende de cómo se obtienen los
+    datos.
 
 - **Organización — dominio vs. feature:** por dominio. Un único módulo `figma`
   agrupa sesión + obtención de información, porque comparten el mismo dominio y
   hoy solo hay un consumidor real (CLI y MCP, ambos wrappers finos sobre el
   mismo core). No se fragmenta por feature.
 
-- **Gateway devuelve datos crudos, no el árbol final:** `FigmaGateway` expone
-  `RawFigmaNode`/`RawFigmaFile` (sin resolver nodos compartidos); `build-tree.ts`
-  es quien los convierte en `FigmaNode`/`FigmaFileResult` ya deduplicados. Sin
-  esta separación, el adapter de scraping (volátil) terminaría haciendo el
-  trabajo de deduplicación, que ya se había decidido como responsabilidad
-  estable del core. Ver sección de interfaces.
+- **Gateway devuelve datos crudos, no la forma final del core:**
+  `FigmaGateway` expone `RawFigmaNode`/`RawFigmaFile` — la forma rica y
+  volátil que trae Figma. `build-tree.ts` selecciona de ahí el subconjunto
+  estable de campos que expone el core (`FigmaNode`/`FigmaFileResult`), para
+  que el contrato del core no dependa de qué tan grande o cambiante sea la
+  forma real de los datos de Figma. Ver sección de interfaces.
 
 - **Relaciones:**
   - `DERIVES_FROM` [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
@@ -80,7 +81,7 @@ src/
     ports.ts                    # SessionStore, InteractiveLogin, FigmaGateway
     model.ts                    # FigmaNode, FigmaPage, FigmaFileResult, estilos
     errors.ts                   # Result<T,E>, FigmaScraperError, códigos
-    build-tree.ts               # resolveNode/resolveFile: Raw* → forma final deduplicada
+    build-tree.ts               # resolveNode/resolveFile: Raw* → forma final del core
   adapters/
     playwright/                 # volátil, aislado del core
       playwright-gateway.ts     # implementa FigmaGateway
@@ -160,11 +161,7 @@ export interface FigmaNode {
   size: { width: number; height: number };
   styles: CommonStyles & { typography?: TypographyStyles };
   image: File | null;
-  children: Array<FigmaNode | SharedNodeRef>;
-}
-
-export interface SharedNodeRef {
-  sharedNodeId: string;
+  children: FigmaNode[];
 }
 
 export interface FigmaPage {
@@ -175,13 +172,10 @@ export interface FigmaPage {
 
 export interface FigmaFileResult {
   pages: FigmaPage[];
-  sharedNodes: Record<string, FigmaNode>;
 }
 
 export type FigmaScrapeResult = FigmaNode | FigmaFileResult;
 
-// Separado de FigmaNode para que la dedup la haga build-tree.ts (core), no
-// el gateway (adapter): un mismo nodo puede repetirse bajo distintos padres.
 export interface RawFigmaNode {
   id: string;
   name: string;
@@ -291,4 +285,4 @@ if (!reauth.ok) {
 ## Ver también
 
 - [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec) — escenarios de login, reutilización de sesión y expiración que motivan `SessionStore` / `InteractiveLogin`.
-- [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios de obtención de nodo/archivo y deduplicación que motivan `FigmaGateway` y `build-tree.ts`.
+- [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios de obtención de nodo/archivo que motivan `FigmaGateway` y `build-tree.ts`.

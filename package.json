@@ -1,0 +1,16 @@
+{
+  "name": "figma-scraper-core",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "test:e2e": "vitest run --project e2e"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "^1.56.1",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
