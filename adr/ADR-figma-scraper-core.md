@@ -7,18 +7,28 @@ sin depender de los rate limits de la REST API / MCP server de Figma en cuentas
 free. El core debe estar desacoplado de cómo se obtienen los datos (scraping vía
 headless browser, hoy con Playwright) y de la interfaz que lo consume (hoy un CLI
 y un MCP server). Los criterios de aceptación de este comportamiento ya están
-definidos en `specs/gestionar_sesion_figma.spec` y `specs/obtener_informacion_figma.spec`.
+definidos en [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
+y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec).
 
 ## Decisión
 
 - **Stack:** TypeScript/Node.
 
-- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters.
-  El core define tres puertos (`SessionStore`, `InteractiveLogin`, `FigmaGateway`)
-  como interfaces; la implementación concreta con Playwright vive fuera del core,
-  en una capa de adapters, y se inyecta. Esto es consecuencia directa de la
-  restricción ya acordada en `/bdd`: el core no debe conocer Playwright ni ningún
-  detalle de cómo se scrapea.
+- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters
+  (arquitectura hexagonal, Cockburn). Un **puerto** es una interfaz que define
+  *el core*, no el adapter: describe qué necesita el core del mundo exterior
+  (`SessionStore`, `InteractiveLogin`, `FigmaGateway`), sin decir cómo se
+  cumple. Un **adapter** es la implementación concreta de un puerto contra una
+  tecnología real (`CookieSessionStore`, `PlaywrightLogin`,
+  `PlaywrightFigmaGateway`), y vive fuera del core. El core solo conoce las
+  interfaces; nunca importa un adapter directamente. Es exactamente Inversión
+  de Dependencias (el core depende de la abstracción, no de Playwright) +
+  Inyección de Dependencias (el adapter concreto se pasa desde afuera, ver
+  `createFigmaScraperCore(deps)` en la sección de interfaces) — "puerto" y
+  "adapter" son solo el vocabulario que le pone la arquitectura hexagonal a
+  esos dos principios. Esto es consecuencia directa de la restricción ya
+  acordada en `/bdd`: el core no debe conocer Playwright ni ningún detalle de
+  cómo se scrapea.
 
 - **Patrón — parseo de URL y construcción del árbol con dedup:** ninguno GoF.
   Decidir si una URL apunta a un nodo o a un file completo es un branch simple
@@ -45,9 +55,33 @@ definidos en `specs/gestionar_sesion_figma.spec` y `specs/obtener_informacion_fi
   hoy solo hay un consumidor real (CLI y MCP, ambos wrappers finos sobre el
   mismo core). No se fragmenta por feature.
 
+- **Naming de interfaces y métodos:** siguiendo el criterio de Parnas (un
+  módulo se nombra por el *secreto* que oculta, no por su mecanismo) y el de
+  Ousterhout en *A Philosophy of Software Design* (evitar verbos genéricos
+  como `get`/`handle`/`process` que no comunican nada, y hacer que la
+  profundidad del nombre matchee la profundidad del comportamiento), se
+  corrigieron varios nombres de la primera versión de este ADR:
+  - `InteractiveLogin.login()` → `authenticate()`: el nombre anterior repetía
+    el nombre de la interfaz sin agregar información.
+  - `FigmaScraperCore.getFromUrl()` → `resolveUrl()`: `get` es un verbo
+    genérico para un método que valida, decide nodo vs. file, gestiona sesión
+    y deduplica — un comportamiento profundo con un nombre demasiado chato.
+  - `FigmaScraperCore.login()` → `reauthenticate()`: el nombre anterior no
+    distinguía esta acción explícita del login automático que ya dispara
+    `resolveUrl()` por su cuenta.
+  - `SharedNodeRef.ref` → `SharedNodeRef.sharedNodeId`: `ref` no comunicaba a
+    qué apuntaba ni se conectaba visualmente con `sharedNodes`.
+  - Al intentar nombrar honestamente qué devuelve `FigmaGateway`, se detectó
+    que estaba devolviendo el tipo ya deduplicado (`FigmaFileResult`), lo que
+    implicaba que el adapter (volátil) terminaría haciendo el trabajo de
+    dedup (decidido como responsabilidad estable del core). Se separaron los
+    tipos `RawFigmaNode`/`RawFigmaFile` (lo que trae el gateway, sin
+    resolver) de los tipos finales `FigmaNode`/`FigmaFileResult` (los que
+    arma `build-tree.ts`). Ver sección de interfaces.
+
 - **Relaciones:**
-  - `DERIVES_FROM specs/gestionar_sesion_figma.spec`
-  - `DERIVES_FROM specs/obtener_informacion_figma.spec`
+  - `DERIVES_FROM` [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
+  - `DERIVES_FROM` [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec)
 
 ## Estructura de carpetas propuesta
 
@@ -58,7 +92,7 @@ src/
     ports.ts                    # SessionStore, InteractiveLogin, FigmaGateway
     model.ts                    # FigmaNode, FigmaPage, FigmaFileResult, estilos
     errors.ts                   # Result<T,E>, FigmaScraperError, códigos
-    build-tree.ts               # armado del árbol + dedup de nodos compartidos
+    build-tree.ts               # resolveNode/resolveFile: Raw* → forma final deduplicada
   adapters/
     playwright/                 # volátil, aislado del core
       playwright-gateway.ts     # implementa FigmaGateway
@@ -131,6 +165,7 @@ export interface TypographyStyles {
   textDecoration?: string;
 }
 
+// Forma final, ya deduplicada — la que devuelve el core (build-tree.ts).
 export interface FigmaNode {
   id: string;
   name: string;
@@ -143,7 +178,7 @@ export interface FigmaNode {
 }
 
 export interface SharedNodeRef {
-  ref: string; // id de un nodo en sharedNodes
+  sharedNodeId: string; // clave dentro de FigmaFileResult.sharedNodes
 }
 
 export interface FigmaPage {
@@ -159,6 +194,25 @@ export interface FigmaFileResult {
 
 export type FigmaScrapeResult = FigmaNode | FigmaFileResult;
 
+// Forma cruda — la que trae el gateway directo de Figma, antes de resolver
+// nodos compartidos. Un mismo nodo puede aparecer repetido bajo distintos
+// padres; distinguirla de FigmaNode es lo que mantiene la deduplicación como
+// responsabilidad del core y no del adapter de scraping.
+export interface RawFigmaNode {
+  id: string;
+  name: string;
+  type: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  styles: CommonStyles & { typography?: TypographyStyles };
+  image: File | null;
+  children: RawFigmaNode[];
+}
+
+export interface RawFigmaFile {
+  pages: Array<{ id: string; name: string; nodes: RawFigmaNode[] }>;
+}
+
 // ports.ts
 export interface FigmaSession {
   cookies: string;
@@ -170,13 +224,29 @@ export interface SessionStore {
 }
 
 export interface InteractiveLogin {
-  login(): Promise<FigmaSession>;
+  authenticate(): Promise<FigmaSession>;
 }
 
+// El gateway distingue "sesión expirada" de "no existe / sin acceso": son la
+// misma forma de fallo HTTP en Figma, pero el core necesita diferenciarlas
+// para saber si debe disparar un re-login solo o devolver un error al caller.
+export type FigmaFetchResult<T> =
+  | { status: "ok"; value: T }
+  | { status: "not-found-or-no-access" }
+  | { status: "session-expired" };
+
+// Devuelve tipos Raw*: el gateway solo sabe traer datos de Figma, no
+// deduplicarlos — ese es el secreto de build-tree.ts, no el suyo.
 export interface FigmaGateway {
-  fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaNode>;
-  fetchFile(fileKey: string, session: FigmaSession): Promise<FigmaFileResult>;
+  fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
+  fetchFile(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaFile>>;
 }
+
+// build-tree.ts — única responsable de convertir lo crudo del gateway en el
+// árbol final deduplicado. Es donde vive el Map<id, FigmaNode> mencionado
+// en la sección de Decisión.
+export function resolveNode(raw: RawFigmaNode): FigmaNode;
+export function resolveFile(raw: RawFigmaFile): FigmaFileResult;
 
 // core.ts
 export interface FigmaScraperCoreDeps {
@@ -186,8 +256,23 @@ export interface FigmaScraperCoreDeps {
 }
 
 export interface FigmaScraperCore {
-  getFromUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
-  login(): Promise<FigmaSession>;
+  /**
+   * Resuelve la URL (nodo o file) y devuelve el resultado.
+   * reauthenticate() NO es un paso previo obligatorio: si no hay sesión
+   * guardada, o si el gateway responde "session-expired", resolveUrl dispara
+   * el login interactivo por su cuenta, guarda la sesión nueva, y reintenta
+   * esta misma solicitud una vez antes de devolver el resultado (spec: "La
+   * sesión expira durante una solicitud").
+   */
+  resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
+
+  /**
+   * Login explícito e independiente de resolveUrl. Solo hace falta llamarlo
+   * cuando el caller quiere forzar un nuevo login aunque la sesión actual
+   * siga siendo válida (spec: "Iniciar sesión de nuevo aunque la sesión
+   * actual siga siendo válida") — reemplaza la sesión existente.
+   */
+  reauthenticate(): Promise<FigmaSession>;
 }
 
 export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraperCore;
@@ -207,15 +292,37 @@ const core = createFigmaScraperCore({
   gateway: new PlaywrightFigmaGateway(),
 });
 
-const result = await core.getFromUrl(
+// 1) Primer uso: no hay sesión guardada todavía.
+// resolveUrl NO necesita un reauthenticate() previo: dispara el login
+// interactivo por su cuenta y, al terminar, completa esta misma solicitud.
+const first = await core.resolveUrl(
   "https://www.figma.com/file/ABC123/Mi-Diseno?node-id=1-23"
 );
 
-if (!result.ok) {
-  // result.error.code: "VALIDATION_EMPTY_URL" | "VALIDATION_NOT_FIGMA_URL" | "NOT_FOUND_OR_NO_ACCESS"
-  console.error(result.error.code, result.error.message);
+// 2) Usos posteriores: hay sesión válida guardada, se reutiliza sola
+// (mismo método, sin ninguna llamada extra).
+const second = await core.resolveUrl(
+  "https://www.figma.com/file/ABC123/Mi-Diseno"
+);
+
+if (!second.ok) {
+  // second.error.code: "VALIDATION_EMPTY_URL" | "VALIDATION_NOT_FIGMA_URL" | "NOT_FOUND_OR_NO_ACCESS"
+  console.error(second.error.code, second.error.message);
 } else {
-  const node = result.value as FigmaNode;
-  console.log(node.type, node.children.length);
+  const file = second.value as FigmaFileResult;
+  console.log(file.pages.length);
 }
+
+// 3) Si la sesión guardada expiró a mitad de una solicitud, resolveUrl repite
+// este mismo flujo del punto 1 internamente (login → reintento) sin que el
+// caller haga nada distinto — por eso no aparece como un caso aparte acá.
+
+// 4) Forzar reautenticación aunque la sesión actual siga siendo válida
+// (ej. un comando explícito "figma-scraper login" en el CLI):
+const newSession = await core.reauthenticate();
 ```
+
+## Ver también
+
+- [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec) — escenarios de login, reutilización de sesión y expiración que motivan `SessionStore` / `InteractiveLogin`.
+- [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios de obtención de nodo/archivo y deduplicación que motivan `FigmaGateway` y `build-tree.ts`.
