@@ -22,6 +22,19 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   Consecuencia directa de la restricción ya acordada en `/bdd`: el core no
   debe conocer Playwright ni ningún detalle de cómo se scrapea.
 
+- **`PlaywrightLogin` y `PlaywrightFigmaGateway` no comparten browser:** cada
+  uno abre su propia instancia de Playwright cuando la necesita; lo único que
+  cruza entre login y scraping es el valor `FigmaSession` vía `SessionStore`.
+  Es el único diseño compatible con el caso real del CLI (login y
+  `resolveUrl` corren en procesos separados, sin ningún objeto vivo que
+  sobreviva entre ambos), así que ni el reintento interno de `resolveUrl`
+  tras una sesión expirada comparte contexto de browser — reabre uno nuevo.
+
+- **`FigmaSession.credential`, no `.cookies`:** el nombre no fija el
+  mecanismo concreto (hoy son cookies serializadas), para no filtrar ese
+  detalle volátil en un tipo que el core y los tres puertos comparten
+  directamente.
+
 - **Patrón — parseo de URL y construcción del árbol con dedup:** ninguno GoF.
   Decidir si una URL apunta a un nodo o a un file completo es un branch simple
   (presencia/ausencia de `node-id`). La deduplicación de nodos compartidos se
@@ -185,7 +198,7 @@ export interface RawFigmaFile {
 }
 
 export interface FigmaSession {
-  cookies: string;
+  credential: string;
 }
 
 export interface SessionStore {
