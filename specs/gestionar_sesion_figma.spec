@@ -1,5 +1,7 @@
 # Gestionar la sesión de Figma
 
+ADR: [ADR-figma-scraper-core](../adr/ADR-figma-scraper-core.md)
+
 ## Iniciar sesión de forma interactiva sin sesión previa
 * El usuario no tiene una sesión válida
 * El usuario completa el proceso de login interactivo

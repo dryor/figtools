@@ -1,5 +1,7 @@
 # Obtener información de nodos y archivos de Figma
 
+ADR: [ADR-figma-scraper-core](../adr/ADR-figma-scraper-core.md)
+
 * El usuario tiene una sesión válida
 
 ## Obtener un nodo específico dado su URL con node-id
