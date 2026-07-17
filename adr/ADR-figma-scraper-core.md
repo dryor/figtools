@@ -35,6 +35,15 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   detalle volátil en un tipo que el core y los tres puertos comparten
   directamente.
 
+- **El core siempre requiere sesión, sin modo anónimo:** Figma no expone el
+  panel de Inspect (medidas, colores) a visitantes sin login, ni siquiera en
+  archivos públicos — confirmado, no hay forma de soportar ese caso hoy. La
+  primera implementación de `PlaywrightFigmaGateway` lee ese panel por DOM,
+  lo cual depende de que la sesión siempre esté presente. Un adapter futuro
+  que en cambio intercepte la respuesta de red (ver `FigmaFetchResult`) es
+  el ejemplo concreto de por qué `FigmaGateway` es un puerto: se podría
+  sumar sin tocar el core ni los otros adapters.
+
 - **Patrón — parseo de URL:** ninguno GoF. Una URL de Figma solo puede decir
   "hay un `node-id`" o "no hay ninguno" — nunca dice si ese id es una página
   o un elemento cualquiera, porque una página es, en los datos reales de
@@ -212,7 +221,9 @@ export type FigmaFetchResult<T> =
   | { status: "session-expired" };
 
 export interface FigmaGateway {
-  fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
+  // El node-id solo tiene sentido dentro de un archivo: hace falta el
+  // fileKey también para poder navegar a la URL real del nodo.
+  fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
   fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
 }
 

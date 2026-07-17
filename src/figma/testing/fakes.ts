@@ -26,12 +26,12 @@ export function createFakeInteractiveLogin(session: FigmaSession) {
 }
 
 export function createFakeGateway(responses: {
-  fetchNode?: (nodeId: string) => FigmaFetchResult<RawFigmaNode>;
+  fetchNode?: (fileKey: string, nodeId: string) => FigmaFetchResult<RawFigmaNode>;
   fetchDefaultPage?: (fileKey: string) => FigmaFetchResult<RawFigmaNode>;
 }): FigmaGateway {
   return {
-    async fetchNode(nodeId) {
-      return responses.fetchNode ? responses.fetchNode(nodeId) : { status: "not-found-or-no-access" };
+    async fetchNode(fileKey, nodeId) {
+      return responses.fetchNode ? responses.fetchNode(fileKey, nodeId) : { status: "not-found-or-no-access" };
     },
     async fetchDefaultPage(fileKey) {
       return responses.fetchDefaultPage ? responses.fetchDefaultPage(fileKey) : { status: "not-found-or-no-access" };
