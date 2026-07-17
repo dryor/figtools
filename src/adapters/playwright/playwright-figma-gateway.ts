@@ -11,8 +11,8 @@ import type { RawFigmaNode } from "../../figma/model";
 const FIGMA_DOCUMENT_RESPONSE = /figma\.com\/(api|graphql)\//;
 
 export class PlaywrightFigmaGateway implements FigmaGateway {
-  async fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
-    const url = `https://www.figma.com/design/x?node-id=${nodeId.replace(":", "-")}`;
+  async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
+    const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
     return this.fetchDocument(url, session, (document) => findNodeById(document, nodeId));
   }
 

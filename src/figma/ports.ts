@@ -22,6 +22,8 @@ export type FigmaFetchResult<T> =
   | { status: "session-expired" };
 
 export interface FigmaGateway {
-  fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
+  // El node-id solo tiene sentido dentro de un archivo: hace falta el
+  // fileKey también para poder navegar a la URL real del nodo.
+  fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
   fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
 }

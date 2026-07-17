@@ -13,7 +13,7 @@ describe.skipIf(!RUN)("obtener_informacion_figma: Obtener un nodo puntual de un 
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
-    const result = await gateway.fetchNode(process.env.FIGMA_TEST_NODE_ID!, session);
+    const result = await gateway.fetchNode(process.env.FIGMA_TEST_FILE_KEY!, process.env.FIGMA_TEST_NODE_ID!, session);
 
     expect(result.status).toBe("ok");
     if (result.status === "ok") {

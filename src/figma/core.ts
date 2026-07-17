@@ -59,7 +59,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
 
   function fetchRaw(parsed: ParsedFigmaUrl, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
     return parsed.nodeId
-      ? deps.gateway.fetchNode(parsed.nodeId, session)
+      ? deps.gateway.fetchNode(parsed.fileKey, parsed.nodeId, session)
       : deps.gateway.fetchDefaultPage(parsed.fileKey, session);
   }
 
