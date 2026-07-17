@@ -14,21 +14,13 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
 
 - **Stack:** TypeScript/Node.
 
-- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters
-  (arquitectura hexagonal, Cockburn). Un **puerto** es una interfaz que define
-  *el core*, no el adapter: describe qué necesita el core del mundo exterior
-  (`SessionStore`, `InteractiveLogin`, `FigmaGateway`), sin decir cómo se
-  cumple. Un **adapter** es la implementación concreta de un puerto contra una
-  tecnología real (`CookieSessionStore`, `PlaywrightLogin`,
-  `PlaywrightFigmaGateway`), y vive fuera del core. El core solo conoce las
-  interfaces; nunca importa un adapter directamente. Es exactamente Inversión
-  de Dependencias (el core depende de la abstracción, no de Playwright) +
-  Inyección de Dependencias (el adapter concreto se pasa desde afuera, ver
-  `createFigmaScraperCore(deps)` en la sección de interfaces) — "puerto" y
-  "adapter" son solo el vocabulario que le pone la arquitectura hexagonal a
-  esos dos principios. Esto es consecuencia directa de la restricción ya
-  acordada en `/bdd`: el core no debe conocer Playwright ni ningún detalle de
-  cómo se scrapea.
+- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters.
+  El core define tres puertos (`SessionStore`, `InteractiveLogin`,
+  `FigmaGateway`) y nunca importa un adapter directamente; las
+  implementaciones concretas (`CookieSessionStore`, `PlaywrightLogin`,
+  `PlaywrightFigmaGateway`) se inyectan vía `createFigmaScraperCore(deps)`.
+  Consecuencia directa de la restricción ya acordada en `/bdd`: el core no
+  debe conocer Playwright ni ningún detalle de cómo se scrapea.
 
 - **Patrón — parseo de URL y construcción del árbol con dedup:** ninguno GoF.
   Decidir si una URL apunta a un nodo o a un file completo es un branch simple
@@ -55,29 +47,12 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   hoy solo hay un consumidor real (CLI y MCP, ambos wrappers finos sobre el
   mismo core). No se fragmenta por feature.
 
-- **Naming de interfaces y métodos:** siguiendo el criterio de Parnas (un
-  módulo se nombra por el *secreto* que oculta, no por su mecanismo) y el de
-  Ousterhout en *A Philosophy of Software Design* (evitar verbos genéricos
-  como `get`/`handle`/`process` que no comunican nada, y hacer que la
-  profundidad del nombre matchee la profundidad del comportamiento), se
-  corrigieron varios nombres de la primera versión de este ADR:
-  - `InteractiveLogin.login()` → `authenticate()`: el nombre anterior repetía
-    el nombre de la interfaz sin agregar información.
-  - `FigmaScraperCore.getFromUrl()` → `resolveUrl()`: `get` es un verbo
-    genérico para un método que valida, decide nodo vs. file, gestiona sesión
-    y deduplica — un comportamiento profundo con un nombre demasiado chato.
-  - `FigmaScraperCore.login()` → `reauthenticate()`: el nombre anterior no
-    distinguía esta acción explícita del login automático que ya dispara
-    `resolveUrl()` por su cuenta.
-  - `SharedNodeRef.ref` → `SharedNodeRef.sharedNodeId`: `ref` no comunicaba a
-    qué apuntaba ni se conectaba visualmente con `sharedNodes`.
-  - Al intentar nombrar honestamente qué devuelve `FigmaGateway`, se detectó
-    que estaba devolviendo el tipo ya deduplicado (`FigmaFileResult`), lo que
-    implicaba que el adapter (volátil) terminaría haciendo el trabajo de
-    dedup (decidido como responsabilidad estable del core). Se separaron los
-    tipos `RawFigmaNode`/`RawFigmaFile` (lo que trae el gateway, sin
-    resolver) de los tipos finales `FigmaNode`/`FigmaFileResult` (los que
-    arma `build-tree.ts`). Ver sección de interfaces.
+- **Gateway devuelve datos crudos, no el árbol final:** `FigmaGateway` expone
+  `RawFigmaNode`/`RawFigmaFile` (sin resolver nodos compartidos); `build-tree.ts`
+  es quien los convierte en `FigmaNode`/`FigmaFileResult` ya deduplicados. Sin
+  esta separación, el adapter de scraping (volátil) terminaría haciendo el
+  trabajo de deduplicación, que ya se había decidido como responsabilidad
+  estable del core. Ver sección de interfaces.
 
 - **Relaciones:**
   - `DERIVES_FROM` [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
