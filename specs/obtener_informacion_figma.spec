@@ -4,19 +4,17 @@ ADR: [ADR-figma-scraper-core](../adr/ADR-figma-scraper-core.md)
 
 * El usuario tiene una sesión válida
 
-## Obtener un nodo específico dado su URL con node-id
-* El usuario proporciona una URL de Figma con node-id
-* El sistema devuelve el nodo correspondiente, incluyendo su tipo, posición, tamaño, estilos, una imagen representativa y la jerarquía completa de sus hijos
+## Obtener un nodo puntual de un diseño de Figma
+* El usuario proporciona la URL de un nodo puntual de un archivo de Figma
+* El sistema devuelve ese nodo, incluyendo su tipo, posición, tamaño, estilos, una imagen representativa y la jerarquía completa de sus hijos
 
-## Obtener un archivo completo dado su URL sin node-id
-* El usuario proporciona una URL de Figma sin node-id
-* El sistema devuelve todas las páginas del archivo
-* Cada página incluye sus nodos padre de nivel superior, cada uno con su jerarquía completa de hijos
+## Obtener los nodos de una página de un diseño de Figma
+* El usuario proporciona la URL de una página de un archivo de Figma
+* El sistema devuelve los nodos de nivel superior de esa página, cada uno con su jerarquía completa de hijos
 
-## Los nodos compartidos entre varios padres no se duplican
-* El usuario solicita un archivo que tiene un nodo usado como hijo de dos o más nodos padre distintos
-* El sistema devuelve ese nodo una sola vez
-* Cada padre que lo usa lo referencia sin repetir su información completa
+## Obtener los nodos de la página por defecto de un diseño de Figma
+* El usuario proporciona una URL de Figma que no señala ningún nodo en particular
+* El sistema devuelve los nodos de nivel superior de la página por defecto del archivo, cada uno con su jerarquía completa de hijos
 
 ## Nodo o archivo inexistente o sin acceso
 * El usuario proporciona la URL de un nodo o archivo que no existe o al que no tiene acceso
