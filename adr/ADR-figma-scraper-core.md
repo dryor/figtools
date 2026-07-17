@@ -35,11 +35,18 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   detalle volátil en un tipo que el core y los tres puertos comparten
   directamente.
 
-- **Patrón — parseo de URL:** ninguno GoF. Decidir si una URL apunta a un nodo
-  o a un file completo es un branch simple (presencia/ausencia de `node-id`).
+- **Patrón — parseo de URL:** ninguno GoF. Una URL de Figma solo puede decir
+  "hay un `node-id`" o "no hay ninguno" — nunca dice si ese id es una página
+  o un elemento cualquiera, porque una página es, en los datos reales de
+  Figma, un nodo más (`type: "CANVAS"`). Por eso `FigmaGateway` no distingue
+  "traer un nodo" de "traer una página": ambas van por `fetchNode`, y es
+  `build-tree.ts` quien decide después, mirando el `type` del nodo ya traído,
+  si arma un `FigmaNode` o un `FigmaPage`. Solo el caso sin ningún `node-id`
+  necesita su propio método (`fetchDefaultPage`), porque ahí no hay id que
+  buscar.
   Cada instancia de un componente ya es, en el modelo real de Figma, un nodo
   completo e independiente (puede tener overrides propios) — no hay datos
-  geométricos repetidos que deduplicar, así que `build-tree.ts` no tiene
+  geométricos repetidos que deduplicar, así que `build-tree.ts` tampoco tiene
   lógica de dedup: solo mapea de la forma cruda a la forma final.
 
 - **Modelo de errores:** `Result<T, E>` explícito (sin `throw`). Las funciones
@@ -62,11 +69,11 @@ y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.sp
   mismo core). No se fragmenta por feature.
 
 - **Gateway devuelve datos crudos, no la forma final del core:**
-  `FigmaGateway` expone `RawFigmaNode`/`RawFigmaFile` — la forma rica y
-  volátil que trae Figma. `build-tree.ts` selecciona de ahí el subconjunto
-  estable de campos que expone el core (`FigmaNode`/`FigmaFileResult`), para
-  que el contrato del core no dependa de qué tan grande o cambiante sea la
-  forma real de los datos de Figma. Ver sección de interfaces.
+  `FigmaGateway` expone `RawFigmaNode` — la forma rica y volátil que trae
+  Figma. `build-tree.ts` selecciona de ahí el subconjunto estable de campos
+  que expone el core (`FigmaNode`/`FigmaPage`), para que el contrato del core
+  no dependa de qué tan grande o cambiante sea la forma real de los datos de
+  Figma. Ver sección de interfaces.
 
 - **Relaciones:**
   - `DERIVES_FROM` [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
@@ -79,14 +86,14 @@ src/
   figma/                        # dominio, estable
     core.ts                     # FigmaScraperCore: orquesta validar → parsear → sesión → gateway → armar árbol
     ports.ts                    # SessionStore, InteractiveLogin, FigmaGateway
-    model.ts                    # FigmaNode, FigmaPage, FigmaFileResult, estilos
+    model.ts                    # FigmaNode, FigmaPage, estilos
     errors.ts                   # Result<T,E>, FigmaScraperError, códigos
-    build-tree.ts               # resolveNode/resolveFile: Raw* → forma final del core
+    build-tree.ts               # resolve: RawFigmaNode → FigmaNode | FigmaPage
   adapters/
+    cookie-session-store.ts     # implementa SessionStore; sin Playwright, es solo lectura/escritura de un archivo
     playwright/                 # volátil, aislado del core
       playwright-gateway.ts     # implementa FigmaGateway
       playwright-login.ts       # implementa InteractiveLogin
-      cookie-session-store.ts   # implementa SessionStore
 ```
 
 ## Interfaces
@@ -107,8 +114,8 @@ flowchart TD
     ALogin[PlaywrightLogin] -.implementa.-> PLogin
     AGateway[PlaywrightFigmaGateway] -.implementa.-> PGateway
 
-    ACookie -.usa.-> Playwright[(Playwright / headless browser)]
-    ALogin -.usa.-> Playwright
+    ACookie -.usa.-> FS[(archivo local)]
+    ALogin -.usa.-> Playwright[(Playwright / headless browser)]
     AGateway -.usa.-> Playwright
 ```
 
@@ -170,11 +177,7 @@ export interface FigmaPage {
   nodes: FigmaNode[];
 }
 
-export interface FigmaFileResult {
-  pages: FigmaPage[];
-}
-
-export type FigmaScrapeResult = FigmaNode | FigmaFileResult;
+export type FigmaScrapeResult = FigmaNode | FigmaPage;
 
 export interface RawFigmaNode {
   id: string;
@@ -185,10 +188,6 @@ export interface RawFigmaNode {
   styles: CommonStyles & { typography?: TypographyStyles };
   image: File | null;
   children: RawFigmaNode[];
-}
-
-export interface RawFigmaFile {
-  pages: Array<{ id: string; name: string; nodes: RawFigmaNode[] }>;
 }
 
 export interface FigmaSession {
@@ -214,11 +213,12 @@ export type FigmaFetchResult<T> =
 
 export interface FigmaGateway {
   fetchNode(nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
-  fetchFile(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaFile>>;
+  fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
 }
 
-export function resolveNode(raw: RawFigmaNode): FigmaNode;
-export function resolveFile(raw: RawFigmaFile): FigmaFileResult;
+// Si raw.type === "CANVAS" arma un FigmaPage (sus children pasan a ser los
+// nodos de la página); para cualquier otro type devuelve un FigmaNode.
+export function resolve(raw: RawFigmaNode): FigmaScrapeResult;
 
 export interface FigmaScraperCoreDeps {
   sessionStore: SessionStore;
