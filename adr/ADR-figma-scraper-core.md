@@ -90,10 +90,10 @@ src/
     errors.ts                   # Result<T,E>, FigmaScraperError, códigos
     build-tree.ts               # resolve: RawFigmaNode → FigmaNode | FigmaPage
   adapters/
+    cookie-session-store.ts     # implementa SessionStore; sin Playwright, es solo lectura/escritura de un archivo
     playwright/                 # volátil, aislado del core
       playwright-gateway.ts     # implementa FigmaGateway
       playwright-login.ts       # implementa InteractiveLogin
-      cookie-session-store.ts   # implementa SessionStore
 ```
 
 ## Interfaces
@@ -114,8 +114,8 @@ flowchart TD
     ALogin[PlaywrightLogin] -.implementa.-> PLogin
     AGateway[PlaywrightFigmaGateway] -.implementa.-> PGateway
 
-    ACookie -.usa.-> Playwright[(Playwright / headless browser)]
-    ALogin -.usa.-> Playwright
+    ACookie -.usa.-> FS[(archivo local)]
+    ALogin -.usa.-> Playwright[(Playwright / headless browser)]
     AGateway -.usa.-> Playwright
 ```
 
