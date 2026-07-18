@@ -8,6 +8,9 @@ description: Crea en un solo paso tanto la implementación de la vista como la i
 ## Qué hace
 Es el equivalente combinado de `/view-implementation` + `/placeholder-implementation` en un solo punto de entrada — para cuando no hace falta que dos personas o dos agentes trabajen en paralelo en vista y servicio por separado. No tiene lógica propia distinta a la de esos dos comandos; produce la unión de ambos outputs.
 
+## Referencias
+Mismas referencias que `/view-implementation` y `/placeholder-implementation` — ver esos `SKILL.md`.
+
 ## Cuándo preferir este sobre los dos comandos separados
 Si el trabajo lo va a hacer una sola persona/agente de punta a punta, este comando evita el overhead de invocar dos skills por separado. Si en cambio dos personas van a trabajar la vista y el servicio en paralelo, es mejor usar `/view-implementation` y `/placeholder-implementation` por separado.
 

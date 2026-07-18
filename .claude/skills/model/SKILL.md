@@ -40,6 +40,15 @@ El spec de Gauge que devuelve `/bdd`.
 ...
 ```
 
+## Referencias
+Si hace falta profundizar más allá de la intuición al decidir patrón o volatilidad, consulta:
+- `.claude/knowledge/patrones-de-diseno/` — GoF, Fowler (*Patterns of Enterprise Application Architecture*, *Refactoring*), *Domain-Driven Design* (Khononov), UML Distilled.
+- `.claude/knowledge/arquitectura-de-software/` — incluye *Righting software...* (Juval Löwy), la referencia que este skill sigue explícitamente para descomposición por volatilidad.
+- `.claude/knowledge/papers/criteria_for_modularization.txt` — Parnas, "On the Criteria To Be Used in Decomposing Systems into Modules": el paper original sobre decomposición por volatilidad/information hiding.
+- `.claude/knowledge/papers/Applying Design by Contract...txt` — Bertrand Meyer: precondiciones/postcondiciones para especificar el comportamiento de una interfaz, útil al definir el contrato de un servicio.
+- `.claude/knowledge/lenguajes-programacion-js-ts/How to Design Programs...txt` — Felleisen et al.: recetas de diseño para funciones y datos, útil al nivel de diseño de interfaces/tipos, no solo de arquitectura.
+- `.claude/knowledge/entrevistas-tecnicas-system-design/` — *Acing the System Design Interview*, *Grokking (Advanced) System Design Interview*, *System Design Interview* Vol. 1 y 2 (Alex Xu): patrones de sistemas distribuidos (caching, sharding, colas, consistencia) aplicables a decisiones de arquitectura, más allá del empaquetado "de entrevista".
+
 ## Ejemplo
 **Input:** spec de Gauge "Buscar pokémon por nombre".
 

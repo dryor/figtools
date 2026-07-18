@@ -14,6 +14,10 @@ Crea la implementación concreta de un servicio para un backend específico, a p
 ## Input
 Un contrato de API.
 
+## Referencias
+- `.claude/knowledge/arquitectura-de-software/` — incluye *Design and Build Great Web APIs*, *The Design of Web APIs*, *Irresistible APIs*, *Designing Distributed Systems*, y dos libros de OAuth 2.0: relevantes al diseñar el adapter concreto contra un contrato de API.
+- `.claude/knowledge/entrevistas-tecnicas-system-design/` — patrones de sistemas distribuidos (caching, colas, consistencia) relevantes al conectar contra un backend real.
+
 ## Ejemplo
 ```typescript
 class PokeApiSearchAdapter implements PokemonSearchService {

@@ -22,6 +22,10 @@ Crear un componente nuevo cuando ya existe uno equivalente duplica trabajo y fra
 3. Crea la story de Storybook aislada de ese componente presentacional — esta story es responsabilidad de este skill, no de `/create-tests` (esas se basan en el spec de `/bdd`, no en el componente aislado).
 4. Deja el componente en uso dentro de la página real.
 
+## Referencias
+- `.claude/knowledge/design-systems/` — Design Systems Handbook, Building Design Systems, Frontend Architecture for Design Systems: para decisiones de reutilización/composición de componentes.
+- `.claude/knowledge/lenguajes-programacion-js-ts/` — *Advanced React* (Nadia Makarevich), *Effective TypeScript*: específicos del stack React 19 + TS del proyecto.
+
 ## Ejemplo
 **Output — componente:**
 ```tsx
