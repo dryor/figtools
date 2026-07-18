@@ -94,6 +94,12 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
           error: { code: "AUTHENTICATION_FAILED", message: "La sesión sigue expirada después de reautenticar" },
         };
       }
+      if (fetchResult.status === "incomplete-node-data") {
+        return {
+          ok: false,
+          error: { code: "INCOMPLETE_NODE_DATA", message: "No se pudo leer los datos completos del nodo" },
+        };
+      }
 
       return { ok: true, value: resolve(fetchResult.value) };
     },

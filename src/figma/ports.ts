@@ -19,7 +19,11 @@ export interface InteractiveLogin {
 export type FigmaFetchResult<T> =
   | { status: "ok"; value: T }
   | { status: "not-found-or-no-access" }
-  | { status: "session-expired" };
+  | { status: "session-expired" }
+  // El nodo existe y es accesible, pero Figma no le mostró a esta sesión
+  // ningún panel de propiedades legible con sus datos (ver
+  // adr/ADR-panel-reader-bridge.md).
+  | { status: "incomplete-node-data" };
 
 export interface FigmaGateway {
   // El node-id solo tiene sentido dentro de un archivo: hace falta el

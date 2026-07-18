@@ -22,13 +22,20 @@ function writeResult(fileName: string, result: unknown): void {
 const RUN_EDIT_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_FILE_KEY);
 
 // Segundo archivo, donde la sesión de FIGMA_TEST_CREDENTIAL tiene acceso de
-// solo view (no editor). Confirmado corriendo contra una sesión real (ver
+// solo view (no editor), en una organización que habilita el panel de
+// inspección para viewers. Confirmado corriendo contra una sesión real (ver
 // adr/ADR-panel-reader-bridge.md): en ese caso Figma muestra un panel de
 // propiedades completamente distinto ("modo inspección",
-// inspectionPropertyRow) en vez del panel de edición
-// (x-y-inputs-row/transform-width/consumed-style-panel) que
-// PlaywrightFigmaGateway sabe leer hoy.
+// inspectionPropertyRow) del panel de edición
+// (x-y-inputs-row/transform-width/consumed-style-panel).
 const RUN_VIEW_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_VIEW_FILE_KEY);
+
+// Tercer archivo, todavía sin confirmar contra una sesión real: un usuario
+// con permiso de solo view en un archivo cuya organización NO habilita el
+// panel de inspección (ver spec: "Obtener un nodo puntual sin panel de
+// datos disponible"). Queda como skip hasta encontrar un archivo real de
+// ese tipo para validarlo — no se puede forzar ese estado desde afuera.
+const RUN_NO_PANEL_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_NO_PANEL_FILE_KEY);
 
 describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma (browser real, modo edición)", () => {
   it("trae datos reales del nodo, no un stub", async () => {
@@ -67,8 +74,8 @@ describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener los nodos de
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma (browser real, modo view/inspección)", () => {
-  it("trae name/type/visible del nodo (leídos de la fila del layers panel, común a ambos modos); position/size/styles quedan null porque el gateway todavía no sabe leer el panel de inspección (ver adr/ADR-panel-reader-bridge.md)", async () => {
+describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma con permiso de solo lectura (browser real, modo inspección)", () => {
+  it("trae datos reales del nodo vía InspectionPanelReader, no solo name/type/visible", async () => {
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
@@ -78,14 +85,27 @@ describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo punt
     if (result.status === "ok") {
       expect(result.value.id).toBe(process.env.FIGMA_TEST_VIEW_NODE_ID);
       expect(result.value.type).toBeTruthy();
-      // Documenta la limitación actual, no el comportamiento deseado: el
-      // panel de inspección no expone estos selectores de modo edición, así
-      // que quedan null hasta que exista un InspectionPanelReader.
-      expect(result.value.position.x).toBeNull();
-      expect(result.value.size.width).toBeNull();
-      expect(result.value.styles).toEqual({});
+      // El panel de inspección expone Width/Height como texto plano — a
+      // diferencia del panel de edición, acá también deberían resolver
+      // width/height los nodos con auto-layout Fill/Hug (ver
+      // adr/ADR-panel-reader-bridge.md).
+      expect(result.value.position.x).not.toBeNull();
+      expect(result.value.size.width).not.toBeNull();
     }
 
     writeResult("fetch-node-view-mode.json", result);
   }, 10 * 60 * 1000);
+});
+
+describe.skipIf(!RUN_NO_PANEL_MODE)("obtener_informacion_figma: Obtener un nodo puntual sin panel de datos disponible (browser real)", () => {
+  it("devuelve status incomplete-node-data sin recorrer el árbol", async () => {
+    const gateway = new PlaywrightFigmaGateway();
+    const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
+
+    const result = await gateway.fetchNode(process.env.FIGMA_TEST_NO_PANEL_FILE_KEY!, process.env.FIGMA_TEST_NO_PANEL_NODE_ID!, session);
+
+    expect(result.status).toBe("incomplete-node-data");
+
+    writeResult("fetch-node-no-panel-mode.json", result);
+  }, 60 * 1000);
 });
