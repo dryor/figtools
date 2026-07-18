@@ -22,6 +22,8 @@ Una User Story casi siempre deja implícitas varias decisiones de comportamiento
 4. Con las respuestas, escribe o completa el spec en Gauge.
 
 ## Referencias
+**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+
 - `.claude/knowledge/bdd/bddInAction2ndEditionMeapV13.txt` — Smart & Molak, *BDD in Action* (2nd ed.). Cap. 5-6 (describir e ilustrar features con ejemplos concretos) y cap. 7 (de ejemplos a especificaciones ejecutables) son el proceso que sigue esta skill al convertir una User Story en escenarios Gauge.
 
 ## Formato de salida

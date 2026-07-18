@@ -28,6 +28,15 @@ Nunca uses `data-testid` (ni atributos custom similares) como default o para lee
 ## Interacciones con estado async (debounce, Suspense, promesas)
 Si el componente usa primitivos async de React (`useDeferredValue`, `startTransition`, `use()` + `Suspense`, o cualquier estado que se resuelva en un microtask fuera del evento síncrono), envuelve la interacción del usuario (`userEvent.type`, `userEvent.click`) en `await act(async () => { ... })` (importado de `react`) para que esa actualización diferida se resuelva dentro del mismo acto — de lo contrario las aserciones pueden leer un DOM en estado intermedio de forma intermitente. Usa `waitFor` como red adicional para aserciones que dependen de un side-effect async (ej. verificar cuántas veces se llamó un mock).
 
+## Referencias
+Ningún libro de la biblioteca cubre Storybook, Playwright, Vitest o Testing Library específicamente — estos 3 son principios generales de unit testing/TDD, no la tooling exacta que pide esta skill.
+
+**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+
+- `.claude/knowledge/buenas-practicas-ingenieria/theArtOfUnitTestingThirdEdition.txt` — Osherove & Khorikov: estructura de un test unitario, uso de test doubles (mocks/stubs), principios generales aplicables aunque el libro no use Testing Library.
+- `.claude/knowledge/buenas-practicas-ingenieria/testDrivenDevelopmentByExample.txt` — Kent Beck: ciclo red-green-refactor, útil como principio aunque esta skill genere tests desde un spec ya existente (no siguiendo TDD estricto).
+- `.claude/knowledge/buenas-practicas-ingenieria/introductionToSoftwareTesting.txt` — Ammann & Offutt: criterios generales de cobertura y diseño de casos de prueba.
+
 ## Ejemplo
 ```tsx
 import type { Meta, StoryObj } from '@storybook/react-vite';

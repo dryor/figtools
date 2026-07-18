@@ -17,7 +17,25 @@ Ayuda a documentar por qué cambia una implementación ya hecha. Hay dos casos, 
 Este comando produce documentación únicamente sobre la implementación (el código). No cubre vista, interfaces de servicio, ni el combo de ambas — esos artefactos ya tienen sus propios comandos (`/view-implementation`, `/placeholder-implementation`, `/full-implementation`) con sus propios outputs.
 
 ## Referencias
-- `.claude/knowledge/patrones-de-diseno/` — incluye *Refactoring* (Fowler/Beck), *Tidy First* (Kent Beck), *Dive Into Refactoring*: útiles para justificar el patrón nuevo en una actualización de decisión.
+**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+
+- `.claude/knowledge/patrones-de-diseno/designPatternsElementsOfReusableObjectOriented.txt` — Design Patterns: Elements of Reusable Object-Oriented (Erich Gamma; Richard Helm, (Computer scientist); Ralph E)
+- `.claude/knowledge/patrones-de-diseno/diveIntoDesignPatterns.txt` — Dive Into Design Patterns (Alexander Shvets)
+- `.claude/knowledge/patrones-de-diseno/diveIntoRefactoring.txt` — Dive Into Refactoring (Alexander Shvets)
+- `.claude/knowledge/patrones-de-diseno/headFirstDesignPatternsBuildingExtensibleAnd.txt` — Head First Design Patterns: Building Extensible and (Eric Freeman, Elisabeth Robson, Eric Freeman, Elisabeth)
+- `.claude/knowledge/patrones-de-diseno/kentBeckTidyFirstAPersonalExerciseInEmpiricalSoftwareDesignO.txt` — Kent Beck - Tidy First:: A Personal Exercise in Empirical Software Design-O'Reilly Media (2023)
+- `.claude/knowledge/patrones-de-diseno/learningDomainDrivenDesignAligningSoftware.txt` — Learning Domain-Driven Design: Aligning Software (Vladik Khononov)
+- `.claude/knowledge/patrones-de-diseno/learningJavascriptDesignPatternsAJavascriptAndReact.txt` — LEARNING JAVASCRIPT DESIGN PATTERNS : a javascript and react (Addy Osmani)
+- `.claude/knowledge/patrones-de-diseno/objectDesignStyleGuidePowerfulTechniquesForCreating.txt` — Object Design Style Guide: Powerful techniques for creating (Matthias Noback)
+- `.claude/knowledge/patrones-de-diseno/patternOrientedSoftwareArchitectureVolume2Patterns.txt` — Pattern-oriented software architecture: Volume 2, Patterns (Douglas C Schmidt; Frank Buschmann; Kevlin Henney; et al)
+- `.claude/knowledge/patrones-de-diseno/patternsForEffectiveUseCasesTheAgileSoftware.txt` — Patterns for Effective Use Cases (The Agile Software (Paul Becker; Steve Adolph; Paul Bramble; Alistair Cockburn;)
+- `.claude/knowledge/patrones-de-diseno/patternsOfEnterpriseApplicationArchitecture.txt` — Patterns of Enterprise Application Architecture (Martin Fowler)
+- `.claude/knowledge/patrones-de-diseno/recipesForDecoupling.txt` — Recipes for Decoupling (Matthias Noback)
+- `.claude/knowledge/patrones-de-diseno/refactoringImprovingTheDesignOfExistingCode.txt` — Refactoring: Improving the Design of Existing Code (Martin Fowler, Kent Beck)
+- `.claude/knowledge/patrones-de-diseno/typescript5DesignPatternsAndBestPractices2nd.txt` — TypeScript 5 Design Patterns and Best Practices, 2nd (Theofanis Despoudis)
+- `.claude/knowledge/patrones-de-diseno/umlDistilledABriefGuideToTheStandardObjectModeling.txt` — UML Distilled: A Brief Guide to the Standard Object Modeling (Fowler, Martin)
+- `.claude/knowledge/patrones-de-diseno/writingEffectiveUseCasesCrystalSeriesForSoftware.txt` — Writing Effective Use Cases (Crystal Series for Software (Cockburn, Alistair Cockburn)
+
 - `.claude/knowledge/buenas-practicas-ingenieria/yourCodeAsACrimeSceneSecondEditionUseForensic.txt` — técnicas de análisis forense de código, afines a estructurar un postmortem.
 
 ## Ejemplo — postmortem (caso 1)
