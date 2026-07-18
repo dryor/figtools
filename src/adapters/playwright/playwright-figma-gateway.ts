@@ -1,50 +1,28 @@
-import { chromium, type Locator, type Page } from "playwright";
+import { chromium, type Page } from "playwright";
 import type { FigmaSession, FigmaGateway, FigmaFetchResult } from "../../figma/ports";
-import type { CommonStyles, FigmaColor, FigmaPaint, RawFigmaNode, TypographyStyles } from "../../figma/model";
-
-// Medido contra una sesión real: el panel de propiedades ya está resuelto
-// ~3ms después del click (no hace falta esperar un render progresivo campo
-// por campo). 500ms deja margen amplio sin acumular varios segundos de
-// espera por cada campo ausente en un árbol grande.
-const FIELD_TIMEOUT_MS = 500;
+import type { RawFigmaNode } from "../../figma/model";
+import type { PanelReader } from "./panel-readers/panel-reader";
+import { detectPanelMode } from "./panel-readers/detect-panel-mode";
+import { createPanelReader } from "./panel-readers/create-panel-reader";
 
 // Selectores confirmados corriendo contra una sesión real de figma.com
-// (ver .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY). El panel real se
-// llama "properties-panel" (no "inspect-panel"), las filas del layers panel
-// tienen el nodeId como PREFIJO del testid ("{nodeId}-layers-panel-row", no
-// "layer-row-{nodeId}"), y los campos de posición/tamaño son inputs cuyo
-// valor vive en el atributo `value`, no en textContent. El nombre del nodo
-// se lee de la fila del layers panel misma; el tipo, del ícono de esa
-// misma fila. Solo se confirmaron los tipos Group/Frame/Instance/Auto
-// layout — otros tipos de nodo (Text, Rectangle, Vector...) no se probaron.
+// (ver .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, y
+// FIGMA_TEST_VIEW_* para modo inspección). Las filas del layers panel
+// tienen el nodeId como PREFIJO del testid ("{nodeId}-layers-panel-row").
+// Los selectores propios de cada modo de panel viven en panel-readers/ (ver
+// adr/ADR-panel-reader-bridge.md).
 const SELECTORS = {
-  propertiesPanel: '[data-testid="properties-panel"]',
   layerRow: (nodeId: string) => `[data-testid="objects-panel"] [data-testid="${nodeId}-layers-panel-row"]`,
-  layerRowName: '.object_row--rowName--GaDj-',
-  layerRowTypeIcon: '[role="img"]',
-  positionX: 'input[aria-label="X-position"]',
-  positionY: 'input[aria-label="Y-position"]',
-  widthHeightRow: '[data-testid="width-height-row"]',
-  width: '[data-testid="transform-width"]',
-  height: '[data-testid="transform-height"]',
-  opacity: '[data-testid="layer-opacity-input"]',
-  cornerRadius: '[data-testid="transform-corner-radius"]',
-  // Fill, Stroke y Typography usan el mismo componente colapsado
-  // (consumed-style-panel) cuando el nodo tiene un estilo con nombre
-  // aplicado — se distinguen por el texto de su <h2> ("Fill"/"Stroke"/
-  // "Typography"). El color real está en el SVG del ícono de estilo, no
-  // como texto.
-  consumedStylePanel: '[data-testid="consumed-style-panel"]',
-  styleName: '[class*="textStyleTitleName"]',
-  styleTag: '[class*="styleTag"]',
-  styleColorCircle: '[data-testid="svg-circle"] circle',
 };
 
 export class PlaywrightFigmaGateway implements FigmaGateway {
   async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
     return this.withPage(session, url, async (page) => {
-      const node = await this.readNode(page, nodeId);
+      const readTree = await this.startReading(page, nodeId);
+      if (!readTree) return { status: "incomplete-node-data" };
+
+      const node = await readTree(nodeId);
       return node ? { status: "ok", value: node } : { status: "not-found-or-no-access" };
     });
   }
@@ -62,9 +40,12 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       const topLevelIds = await this.listTopLevelNodeIds(page);
       if (topLevelIds.length === 0) return { status: "not-found-or-no-access" };
 
+      const readTree = await this.startReading(page, topLevelIds[0]);
+      if (!readTree) return { status: "incomplete-node-data" };
+
       const children: RawFigmaNode[] = [];
       for (const nodeId of topLevelIds) {
-        const child = await this.readNode(page, nodeId);
+        const child = await readTree(nodeId);
         if (child) children.push(child);
       }
 
@@ -85,6 +66,32 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
         },
       };
     });
+  }
+
+  // El panel de propiedades no existe hasta que se selecciona un nodo real —
+  // detectPanelMode no tiene nada que inspeccionar antes del primer click
+  // (confirmado: fetchDefaultPage sin este orden devolvía "none" siempre,
+  // aunque el archivo sí tuviera un panel disponible). Por eso se clickea el
+  // nodo semilla acá, se detecta el modo recién con eso en pantalla, y el
+  // PanelReader resultante se reutiliza para el resto del árbol — el modo no
+  // cambia entre nodos de una misma página cargada.
+  private async startReading(
+    page: Page,
+    seedNodeId: string
+  ): Promise<((nodeId: string) => Promise<RawFigmaNode | null>) | null> {
+    const seedRow = page.locator(SELECTORS.layerRow(seedNodeId));
+    if ((await seedRow.count()) === 0) return null;
+    await seedRow.click();
+
+    const mode = await detectPanelMode({ hasSelector: (selector) => this.hasSelector(page, selector) });
+    if (mode === "none") return null;
+
+    const reader = createPanelReader(mode);
+    return (nodeId: string) => this.readNode(page, nodeId, reader);
+  }
+
+  private async hasSelector(page: Page, selector: string): Promise<boolean> {
+    return (await page.locator(`[data-testid="${selector}"]`).count()) > 0;
   }
 
   private async listTopLevelNodeIds(page: Page): Promise<string[]> {
@@ -143,32 +150,24 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     }
   }
 
-  private async readNode(page: Page, nodeId: string): Promise<RawFigmaNode | null> {
+  private async readNode(page: Page, nodeId: string, reader: PanelReader): Promise<RawFigmaNode | null> {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     if ((await row.count()) === 0) return null;
     await row.click();
 
-    const panel = page.locator(SELECTORS.propertiesPanel);
-    // El layout del panel de propiedades varía según el tipo de nodo (Group,
-    // Frame, Instance, Text, Vector, nodos con auto-layout Fill/Hug...) y no
-    // todos exponen los mismos campos. En vez de esperar cada campo de forma
-    // estricta (lo que cuelga el recorrido recursivo apenas aparece un tipo
-    // de nodo no mapeado), cada lectura tiene un timeout corto propio y cae
-    // a un valor vacío si el campo no está.
-    const name = (await row.locator(SELECTORS.layerRowName).textContent()) ?? "";
-    const type = (await row.locator(SELECTORS.layerRowTypeIcon).first().getAttribute("aria-label")) ?? "";
-    const visible = !(await this.isRowHidden(row));
-    const x = await this.readDimension(panel, SELECTORS.positionX);
-    const y = await this.readDimension(panel, SELECTORS.positionY);
-    const width = await this.readDimension(panel, SELECTORS.width);
-    const height = await this.readDimension(panel, SELECTORS.height);
-    const styles = await this.readStyles(panel);
+    const panel = page.locator('[data-testid="properties-panel"]');
+    const name = await reader.readName(row);
+    const type = await reader.readType(row);
+    const visible = await reader.readVisible(row);
+    const { x, y } = await reader.readPosition(panel);
+    const { width, height } = await reader.readSize(panel);
+    const styles = await reader.readStyles(panel);
 
     const childIds = await this.expandAndListChildren(page, nodeId);
 
     const children: RawFigmaNode[] = [];
     for (const childId of childIds) {
-      const child = await this.readNode(page, childId);
+      const child = await this.readNode(page, childId, reader);
       if (child) children.push(child);
     }
 
@@ -184,116 +183,6 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       // diseñó, así que queda sin resolver por ahora.
       image: null,
       children,
-    };
-  }
-
-  // La fila entera (no rowContent, que es donde vive el testid) gana una
-  // clase con el patrón "object_row--disabled" cuando la capa está oculta en
-  // Figma (ícono de visibilidad apagado). Confirmado comparando el HTML de
-  // un nodo oculto ("pokeball") contra un hermano visible.
-  private async isRowHidden(row: Locator): Promise<boolean> {
-    const wrapperClass = await row.evaluate((el) => {
-      const wrapper = el.closest('[data-testid="layer-row-with-children"]') ?? el.parentElement;
-      return wrapper?.className ?? "";
-    });
-    return wrapperClass.includes("object_row--disabled");
-  }
-
-  // Ni todos los campos (X/Y/width/height) existen para todo tipo de nodo
-  // (ver comentario en readNode), ni el panel se re-renderiza de forma
-  // perfectamente sincrónica tras el click — por eso la espera corta antes
-  // de decidir que el campo no está, en vez de un count() inmediato que
-  // podría dar un falso negativo por una carrera de timing. Medido contra
-  // una sesión real: el panel completo (incluyendo campos que sí existen)
-  // se resuelve en ~3ms tras el click, así que 500ms ya deja margen de
-  // sobra sin acercarse al costo de 1.5-3s que tenía antes.
-  private async readDimension(panel: Locator, selector: string): Promise<number | null> {
-    const input = panel.locator(selector);
-    try {
-      await input.waitFor({ timeout: FIELD_TIMEOUT_MS });
-    } catch {
-      return null;
-    }
-    return parseCssNumber(await input.getAttribute("value"));
-  }
-
-  // opacity y corner-radius son inputs directos; fill/stroke/typography
-  // viven como secciones "consumed-style-panel" (solo aparecen cuando el
-  // nodo tiene un estilo con nombre aplicado — sin eso, la sección no
-  // existe en el DOM y queda sin leer). Confirmado corriendo contra una
-  // sesión real: la UI de Figma no expone fontFamily/fontWeight como campos
-  // separados para un texto con estilo aplicado, solo el nombre del estilo
-  // y tamaño/line-height combinados.
-  private async readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }> {
-    const styles: CommonStyles & { typography?: TypographyStyles } = {};
-
-    const opacityText = await this.readTextOrNull(panel.locator(SELECTORS.opacity), "value");
-    if (opacityText) styles.opacity = parseCssNumber(opacityText) ?? undefined;
-
-    const cornerRadiusText = await this.readTextOrNull(panel.locator(SELECTORS.cornerRadius), "value");
-    if (cornerRadiusText) styles.cornerRadius = parseCssNumber(cornerRadiusText) ?? undefined;
-
-    const fill = await this.readConsumedStylePaint(panel, "Fill");
-    if (fill) styles.fills = [fill];
-
-    const stroke = await this.readConsumedStylePaint(panel, "Stroke");
-    if (stroke) styles.strokes = [stroke];
-
-    const typography = await this.readTypography(panel);
-    if (typography) styles.typography = typography;
-
-    return styles;
-  }
-
-  private async readTextOrNull(locator: Locator, attribute?: string): Promise<string | null> {
-    try {
-      await locator.first().waitFor({ timeout: FIELD_TIMEOUT_MS });
-    } catch {
-      return null;
-    }
-    return attribute ? locator.first().getAttribute(attribute) : locator.first().textContent();
-  }
-
-  // consumed-style-panel se repite una vez por sección (Fill, Stroke,
-  // Typography); se identifica por el texto de su <h2>.
-  private async findConsumedStyleSection(panel: Locator, sectionTitle: string): Promise<Locator | null> {
-    const sections = panel.locator(SELECTORS.consumedStylePanel);
-    const count = await sections.count();
-    for (let i = 0; i < count; i++) {
-      const section = sections.nth(i);
-      const title = await section.locator("h2").first().textContent().catch(() => null);
-      if (title?.trim() === sectionTitle) return section;
-    }
-    return null;
-  }
-
-  private async readConsumedStylePaint(panel: Locator, sectionTitle: "Fill" | "Stroke"): Promise<FigmaPaint | null> {
-    const section = await this.findConsumedStyleSection(panel, sectionTitle);
-    if (!section) return null;
-
-    const styleName = await this.readTextOrNull(section.locator(SELECTORS.styleName));
-    const fill = await this.readTextOrNull(section.locator(SELECTORS.styleColorCircle), "fill");
-    const color = parseRgbaColor(fill);
-    if (!color) return null;
-
-    return { styleName, color };
-  }
-
-  private async readTypography(panel: Locator): Promise<TypographyStyles | null> {
-    const section = await this.findConsumedStyleSection(panel, "Typography");
-    if (!section) return null;
-
-    const styleName = await this.readTextOrNull(section.locator(SELECTORS.styleName));
-    // El tag combina tamaño de fuente y line-height como " · 8/12".
-    const styleTag = await this.readTextOrNull(section.locator(SELECTORS.styleTag));
-    const match = styleTag?.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
-
-    return {
-      styleName,
-      fontFamily: null,
-      fontWeight: null,
-      fontSize: match ? parseFloat(match[1]) : null,
-      lineHeightPx: match ? parseFloat(match[2]) : null,
     };
   }
 
@@ -346,22 +235,4 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       return childIds;
     }, nodeId);
   }
-}
-
-function parseCssNumber(text: string | null): number | null {
-  if (!text) return null;
-  const match = text.match(/-?\d+(\.\d+)?/);
-  return match ? parseFloat(match[0]) : null;
-}
-
-function parseRgbaColor(fill: string | null): FigmaColor | null {
-  if (!fill) return null;
-  const match = fill.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/);
-  if (!match) return null;
-  return {
-    r: parseInt(match[1], 10),
-    g: parseInt(match[2], 10),
-    b: parseInt(match[3], 10),
-    a: match[4] !== undefined ? parseFloat(match[4]) : 1,
-  };
 }
