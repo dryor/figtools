@@ -6,11 +6,11 @@
 
 ## Obtener la información de varias URLs en una sola invocación
 * El usuario corre el CLI con varias URLs de Figma que resuelven correctamente
-* El sistema imprime la información de cada una de esas URLs
+* El sistema imprime en stdout la información de cada una de esas URLs
 
 ## El fallo de una URL no impide obtener las demás
 * El usuario corre el CLI con varias URLs de Figma, y una de ellas no existe o no es accesible
-* El sistema imprime la información de las URLs que sí resolvieron
+* El sistema imprime en stdout la información de las URLs que sí resolvieron
 
 ## El resumen final reporta cuáles URLs fallaron y por qué
 * El usuario corre el CLI con varias URLs de Figma, y una de ellas no existe o no es accesible
@@ -38,9 +38,17 @@
 * El sistema escribe el resultado exactamente en esa ruta de archivo
 
 ## --output sin ninguna extensión se interpreta como directorio destino
-* El usuario corre el CLI con --output apuntando a una ruta sin extensión
+* El usuario corre el CLI con --format json y --output apuntando a una ruta sin extensión, resolviendo varias URLs
 * El sistema crea ese directorio si no existe
-* El sistema escribe dentro de ese directorio un archivo por URL resuelta, nombrado a partir de su fileKey y nodeId
+* El sistema escribe dentro de ese directorio un archivo json por URL resuelta, nombrado a partir de su fileKey y nodeId
+
+## Una ruta relativa en --output se resuelve contra el directorio actual
+* El usuario corre el CLI con --output apuntando a una ruta relativa, sin / al inicio
+* El sistema resuelve esa ruta tomando como base el directorio desde el que se ejecutó el comando
+
+## Una ruta absoluta en --output se usa tal cual
+* El usuario corre el CLI con --output apuntando a una ruta absoluta, con / al inicio
+* El sistema usa esa ruta exactamente como fue indicada, sin resolverla contra ningún otro directorio
 
 ## Rechazar una extensión de --output no soportada
 * El usuario corre el CLI con --output apuntando a una ruta cuya extensión no es .json ni .md
@@ -52,12 +60,32 @@
 * El usuario corre el CLI con --format markdown y --output apuntando a una ruta con extensión .md
 * El sistema trata esa ruta como directorio destino, no como el archivo único de salida
 
-## Formato markdown genera un árbol de archivos navegable
+## Formato markdown nombra cada archivo según el nombre del nodo en Figma
+* El usuario corre el CLI con --format markdown sobre una URL
+* El sistema nombra cada archivo o carpeta a partir del nombre que ese nodo tiene en Figma, no de su nodeId
+* El nombre de archivo o carpeta usa un slug del nombre del nodo (minúsculas, espacios reemplazados por guiones)
+
+## Un nodo sin hijos se guarda como un archivo markdown simple
+* El usuario corre el CLI con --format markdown sobre una URL cuyo nodo no tiene hijos
+* El sistema genera un único archivo markdown para ese nodo, nombrado según el slug de su nombre
+
+## Un nodo con hijos se guarda como una carpeta con su propio índice
 * El usuario corre el CLI con --format markdown sobre una URL cuyo nodo tiene hijos
-* El sistema genera un archivo markdown por cada nodo de la jerarquía, dentro de una subcarpeta nombrada según el fileKey de esa URL
-* El nodo raíz de esa URL se guarda como index.md dentro de esa subcarpeta
-* Cada nodo hijo se guarda como node-<nodeId>.md dentro de esa subcarpeta
-* Cada archivo markdown de un nodo con hijos incluye enlaces a los archivos markdown de sus hijos
+* El sistema crea una carpeta nombrada según el slug del nombre de ese nodo
+* Dentro de esa carpeta, el sistema guarda la información del nodo en un archivo index.md
+
+## La jerarquía de nodos se refleja en la jerarquía de carpetas
+* El usuario corre el CLI con --format markdown sobre una URL cuyo nodo tiene hijos anidados en varios niveles
+* El sistema ubica el archivo o carpeta de cada hijo dentro de la carpeta de su nodo padre, reflejando la misma profundidad que tienen en Figma
+
+## El índice de un nodo enlaza a sus hijos
+* El usuario corre el CLI con --format markdown sobre una URL cuyo nodo tiene hijos
+* El archivo index.md de ese nodo incluye un enlace a cada uno de sus hijos
+
+## Nodos hermanos con el mismo nombre no colisionan
+* El usuario corre el CLI con --format markdown sobre una URL cuyo nodo tiene varios hijos directos con el mismo nombre en Figma
+* El sistema agrega un sufijo entre corchetes con la posición de aparición (por ejemplo [2], [3]) al slug de cada hijo repetido, a partir del segundo
+* El primer hijo con ese nombre no lleva sufijo
 
 ## Varias URLs con --format markdown no colisionan entre sí
 * El usuario corre el CLI con --format markdown y varias URLs que pertenecen a archivos de Figma distintos
