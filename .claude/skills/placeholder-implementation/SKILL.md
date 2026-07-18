@@ -16,7 +16,7 @@ El `ADR.md` de la funcionalidad.
 
 ## Referencias
 - `.claude/knowledge/arquitectura-de-software/` — mismos libros de diseño de APIs que `/backend-connection`, útiles al definir la interfaz antes de tener el backend real.
-- `.claude/knowledge/papers/Applying Design by Contract...txt` — Bertrand Meyer: para especificar precondiciones/postcondiciones de la interfaz antes de crear el stub.
+- `.claude/knowledge/papers/applyingDesignByContract.txt` — Bertrand Meyer: para especificar precondiciones/postcondiciones de la interfaz antes de crear el stub.
 
 ## Ejemplo
 ```typescript
