@@ -23,8 +23,18 @@ Crear un componente nuevo cuando ya existe uno equivalente duplica trabajo y fra
 4. Deja el componente en uso dentro de la página real.
 
 ## Referencias
-- `.claude/knowledge/design-systems/` — Design Systems Handbook, Building Design Systems, Frontend Architecture for Design Systems: para decisiones de reutilización/composición de componentes.
-- `.claude/knowledge/lenguajes-programacion-js-ts/` — *Advanced React* (Nadia Makarevich), *Effective TypeScript*: específicos del stack React 19 + TS del proyecto.
+**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+
+- `.claude/knowledge/design-systems/adaptiveWebDesignCraftingRichExperiencesWith.txt` — Adaptive Web Design: Crafting Rich Experiences with (Aaron Gustafson)
+- `.claude/knowledge/design-systems/buildingDesignSystemsUnifyUserExperiencesThroughA.txt` — Building Design Systems : Unify User Experiences Through a (Sarrah Vesselov, Taurie Davis)
+- `.claude/knowledge/design-systems/designSystemsForDevelopersLearnHowToCodeDesign.txt` — Design systems for developers: Learn how to code design (Michael Mangialardi)
+- `.claude/knowledge/design-systems/designSystemsHandbook.txt` — Design Systems Handbook (Marco Suarez, Jina Anne, Katie Sylor-Miller, Diana Mounter,)
+- `.claude/knowledge/design-systems/frontendArchitectureForDesignSystemsAModern.txt` — Frontend Architecture for Design Systems : A Modern (Godbolt, Micah)
+- `.claude/knowledge/design-systems/layingTheFoundationsABookAboutDesignSystems.txt` — Laying the Foundations: A book about design systems (Andrew Couldwell, Meagan Fisher Couldwell (editor))
+- `.claude/knowledge/design-systems/ulDesignSystemsMastery.txt` — Ul Design Systems Mastery (Budarina M.)
+
+- `.claude/knowledge/lenguajes-programacion-js-ts/advancedReactDeepDivesInvestigationsPerformance.txt` — Advanced React: deep dives, investigations, performance (Nadia Makarevich)
+- `.claude/knowledge/lenguajes-programacion-js-ts/effectiveTypescript83SpecificWaysToImproveYour.txt` — Effective Typescript : 83 Specific Ways to Improve Your (Dan Vanderkam;)
 
 ## Ejemplo
 **Output — componente:**
