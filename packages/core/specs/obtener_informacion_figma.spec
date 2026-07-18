@@ -1,6 +1,6 @@
 # Obtener información de nodos y archivos de Figma
 
-ADR: [ADR-figma-scraper-core](../adr/ADR-figma-scraper-core.md)
+ADR: [ADR-figtools-core](../adr/ADR-figtools-core.md)
 
 * El usuario tiene una sesión válida, con permiso de al menos lectura sobre el archivo
 

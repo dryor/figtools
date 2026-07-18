@@ -1,4 +1,4 @@
-# ADR-figma-scraper-core
+# ADR-figtools-core
 
 ## Contexto
 
@@ -101,9 +101,11 @@ src/
   adapters/
     cookie-session-store.ts     # implementa SessionStore; sin Playwright, es solo lectura/escritura de un archivo
     playwright/                 # volátil, aislado del core
-      playwright-gateway.ts     # implementa FigmaGateway
-      playwright-login.ts       # implementa InteractiveLogin
+      playwright-figma-gateway.ts  # implementa FigmaGateway
+      playwright-login.ts          # implementa InteractiveLogin
 ```
+
+Este árbol vive en `packages/core/src/` dentro del monorepo — el paquete publicado es `@figtools/core`.
 
 ## Interfaces
 
@@ -267,10 +269,12 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
 ### Usage example
 
 ```typescript
-import { createFigmaScraperCore } from "./figma/core";
-import { PlaywrightFigmaGateway } from "./adapters/playwright/playwright-gateway";
-import { PlaywrightLogin } from "./adapters/playwright/playwright-login";
-import { CookieSessionStore } from "./adapters/playwright/cookie-session-store";
+import {
+  createFigmaScraperCore,
+  PlaywrightFigmaGateway,
+  PlaywrightLogin,
+  CookieSessionStore,
+} from "@figtools/core";
 
 const core = createFigmaScraperCore({
   sessionStore: new CookieSessionStore(),
@@ -291,7 +295,7 @@ if (!result.ok) {
   console.log(node.type, node.children.length);
 }
 
-// Comando explícito "figma-scraper login" en el CLI, por ejemplo.
+// Comando explícito "figtools login" en el CLI, por ejemplo.
 const reauth = await core.reauthenticate();
 if (!reauth.ok) {
   console.error(reauth.error.code, reauth.error.message);

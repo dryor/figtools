@@ -2,7 +2,7 @@
 
 ## Contexto
 
-`PlaywrightFigmaGateway` (definido en [`ADR-figma-scraper-core`](./ADR-figma-scraper-core.md))
+`PlaywrightFigmaGateway` (definido en [`ADR-figtools-core`](./ADR-figtools-core.md))
 lee los datos de un nodo scrapeando el DOM del panel de propiedades de
 Figma. Se confirmó corriendo contra sesiones reales que **el DOM de ese
 panel cambia por completo según el modo en que Figma renderiza el archivo**,
@@ -67,12 +67,12 @@ resultado parcial sin poder validarlo.
 - **Modo `"none"` corta antes de `readNode`, no entra al `PanelReader`.**
   Cuando `detectPanelMode` no encuentra ni el panel de edición ni el de
   inspección, `fetchNode` devuelve directamente el status que el core mapea
-  a `INCOMPLETE_NODE_DATA` (ver `ADR-figma-scraper-core`), sin instanciar
+  a `INCOMPLETE_NODE_DATA` (ver `ADR-figtools-core`), sin instanciar
   ningún `PanelReader` ni llamar a `readNode`. Alternativa descartada: un
   `NullPanelReader` cuyos métodos devuelven siempre vacío, dejando que
   `readNode` corra igual — significaría gastar el recorrido completo del
   árbol (potencialmente varios minutos en un archivo grande, ver duración
-  medida en `ADR-figma-scraper-core`) para un resultado que de entrada se
+  medida en `ADR-figtools-core`) para un resultado que de entrada se
   sabe va a ser un error.
 
 - **Organización — carpeta dedicada.** `panel-readers/` dentro de
@@ -91,7 +91,7 @@ resultado parcial sin poder validarlo.
     (`readNode`, `expandAndListChildren`, síntesis del nodo CANVAS) — no
     cambia entre modos, ya está probado contra sesiones reales.
 
-- **`FigmaFetchResult` gana un status nuevo.** `ADR-figma-scraper-core`
+- **`FigmaFetchResult` gana un status nuevo.** `ADR-figtools-core`
   define `FigmaFetchResult<T>` con `"ok" | "not-found-or-no-access" |
   "session-expired"` — ninguno cubre "el nodo existe pero no hay panel
   legible". Se agrega `"incomplete-node-data"`, que el core mapea al código
@@ -101,7 +101,7 @@ resultado parcial sin poder validarlo.
   `PlaywrightFigmaGateway`.
 
 - **Relaciones:**
-  - `RELATED_TO` [`ADR-figma-scraper-core`](./ADR-figma-scraper-core.md) —
+  - `RELATED_TO` [`ADR-figtools-core`](./ADR-figtools-core.md) —
     extiende la implementación interna de `PlaywrightFigmaGateway`; agrega
     un status a `FigmaFetchResult`, el único punto donde este documento
     toca el contrato del puerto que ese ADR ya define.
@@ -207,5 +207,5 @@ private async readNode(page: Page, nodeId: string, reader: PanelReader): Promise
 
 ## Ver también
 
-- [`ADR-figma-scraper-core`](./ADR-figma-scraper-core.md) — define `FigmaGateway` como puerto y `PlaywrightFigmaGateway` como su adapter concreto; este documento extiende la estructura interna de ese adapter.
+- [`ADR-figtools-core`](./ADR-figtools-core.md) — define `FigmaGateway` como puerto y `PlaywrightFigmaGateway` como su adapter concreto; este documento extiende la estructura interna de ese adapter.
 - [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios por nivel de acceso que motivan la existencia de más de un `PanelReader`.
