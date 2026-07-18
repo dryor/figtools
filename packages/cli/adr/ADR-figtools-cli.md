@@ -100,6 +100,15 @@ que la primera termine el suyo, abriendo varios navegadores headed a la vez.
   memoria compartida mutable entre las N resoluciones más allá de la sesión
   ya persistida en disco por `CookieSessionStore`.
 
+- **Si `ensureSession()` falla, se aborta sin intentar ninguna URL.** El
+  spec original no cubre este caso (solo describe el fallo de una URL
+  individual durante la resolución, no un fallo de la sesión compartida
+  antes de arrancar). Si no se puede garantizar una sesión válida, todas las
+  URLs fallarían de la misma forma, así que `resolveAll` no llama a
+  `resolveUrl` para ninguna: devuelve las N URLs marcadas con el error de
+  sesión que devolvió `ensureSession()`, sin intentar la resolución
+  individual de cada una.
+
 - **Volatilidad:**
   - **Volátil:** el formato de salida (hoy `json`/`markdown`; el spec ya
     define ambos como soluciones concretas, no como el requerimiento real —
@@ -118,6 +127,22 @@ que la primera termine el suyo, abriendo varios navegadores headed a la vez.
   responsabilidad técnica (parseo, orquestación, escritura), consistente con
   que hoy solo hay un flujo de negocio ("resolver URLs de Figma"), no
   múltiples features que ameriten carpetas por dominio.
+
+- **Parseo de argumentos y decisión de destino — funciones puras, separadas del entrypoint.**
+  `cli.ts` no debe acoplar el parseo a `process.argv`/`process.exit`
+  directamente, porque eso impide testear el parseo sin ejecutar el proceso
+  real. Se extraen dos funciones puras:
+  - `parseArgs(argv: string[])`: recibe los argumentos ya recortados (sin
+    `node` ni la ruta del script) y devuelve la configuración parseada (URLs,
+    `format`, `outputPath`, `quiet`, o el subcomando `login`) o un error de
+    validación — nunca lee `process.argv` ni imprime nada por su cuenta.
+  - `decideOutputTarget(outputPath: string | undefined, format: "json" | "markdown")`:
+    decide si `outputPath` se interpreta como archivo o carpeta (o si la
+    extensión no es soportada), sin tocar el filesystem.
+  `cli.ts` queda como un entrypoint delgado: llama a estas funciones, orquesta
+  `resolveAll` y los writers, e imprime/hace `process.exit` al final. Esto es
+  lo mismo que separar la lógica pura y testeable de sus efectos, ya aplicado
+  en `slugifyWithCollisions` para el writer de markdown.
 
 - **Relaciones:**
   - `DERIVES_FROM` [`specs/resolver_urls_de_figma_por_linea_de_comandos.spec`](../specs/resolver_urls_de_figma_por_linea_de_comandos.spec)
@@ -171,6 +196,37 @@ export interface FigmaScraperCore {
 // Función pura: nombra cada nodo por el slug de su `name` en Figma, agregando
 // un sufijo [2], [3]... a partir del segundo hermano con el mismo nombre.
 export function slugifyWithCollisions(names: string[]): string[];
+
+// packages/cli/src/cli.ts
+export type OutputFormat = "json" | "markdown";
+
+export interface ParsedArgs {
+  urls: string[];
+  format: OutputFormat;
+  outputPath?: string;
+  quiet: boolean;
+  command?: "login";
+}
+
+export type ParseArgsResult = Result<ParsedArgs, { code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION"; message: string }>;
+
+// Recibe los argumentos ya recortados (sin `node` ni la ruta del script).
+// No lee process.argv ni imprime nada — función pura.
+export function parseArgs(argv: string[]): ParseArgsResult;
+
+export type OutputTarget =
+  | { kind: "stdout" }
+  | { kind: "file"; path: string }
+  | { kind: "directory"; path: string }
+  | { kind: "unsupported-extension"; extension: string };
+
+// Decide si outputPath se interpreta como archivo, carpeta, o extensión no
+// soportada — sin tocar el filesystem. Con format "markdown", nunca devuelve
+// "file": siempre "directory" (ver spec).
+export function decideOutputTarget(
+  outputPath: string | undefined,
+  format: OutputFormat,
+): OutputTarget;
 
 // packages/cli/src/output/markdown-writer.ts
 export interface MarkdownWriterOptions {

@@ -1,0 +1,30 @@
+{
+  "name": "@figtools/cli",
+  "version": "0.1.0",
+  "description": "Resuelve una o varias URLs de Figma desde la línea de comandos y escribe el resultado en json o en un árbol de markdown navegable pensado para que un LLM lo use como fuente de datos.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "figtools": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rslib build",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@figtools/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.23.2",
+    "@types/node": "^26.1.1",
+    "playwright": "^1.61.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
