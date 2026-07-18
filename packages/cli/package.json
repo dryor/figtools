@@ -15,15 +15,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@figtools/core": "workspace:*"
-  },
-  "peerDependencies": {
+    "@figtools/core": "workspace:*",
     "playwright": "^1.61.1"
   },
   "devDependencies": {
     "@rslib/core": "^0.23.2",
     "@types/node": "^26.1.1",
-    "playwright": "^1.61.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
