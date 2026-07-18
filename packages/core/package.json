@@ -1,0 +1,33 @@
+{
+  "name": "@figtools/core",
+  "version": "0.1.0",
+  "description": "Trae la información de un nodo o archivo de Figma (posición, tamaño, estilos, jerarquía) sin las limitaciones de una cuenta free: sin los rate limits de la REST API oficial, sin requerir el plan de Dev Mode.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rslib build",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.23.2",
+    "@types/node": "^26.1.1",
+    "playwright": "^1.61.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

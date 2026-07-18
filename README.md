@@ -1,20 +1,25 @@
-# get-figma
+# @figtools/core
 
-Lee nodos y archivos de Figma sin depender de la REST API oficial (evita sus
-rate limits en cuentas free) y sin depender del plan del usuario para tener
-Dev Mode. El core scrapea el DOM de figma.com vía un browser real (Playwright)
-para extraer tipo, posición, tamaño, estilos y jerarquía de un nodo, y
-construye el mismo árbol de datos que la API oficial expondría.
+Trae la información de un nodo o archivo de Figma (posición, tamaño, estilos,
+jerarquía) sin las limitaciones de una cuenta free: sin los rate limits de la
+REST API oficial, sin requerir el plan de Dev Mode. La implementación actual
+lee esos datos scrapeando el DOM de figma.com vía un browser real
+(Playwright), pero ese mecanismo es un detalle de adapter — ver
+[`packages/core/adr/ADR-figtools-core.md`](./packages/core/adr/ADR-figtools-core.md)
+para el diseño de puertos que permite sumar otros mecanismos (REST API,
+plugin, interceptar network) sin tocar el core.
 
-Hoy solo existe el core (`src/figma/`) más el adapter de Playwright
-(`src/adapters/playwright/`) — no hay CLI ni MCP server todavía. El roadmap
-es migrar a un monorepo para publicar esos paquetes por separado; ver
-[`adr/ADR-figma-scraper-core.md`](./adr/ADR-figma-scraper-core.md) para el
-diseño de puertos que ya lo anticipa.
+Este repo es un monorepo con pnpm workspaces. Hoy publica un solo paquete,
+[`@figtools/core`](./packages/core) (`packages/core/`), que junta el core y
+sus adapters. El roadmap incluye separar un CLI y un MCP server como
+paquetes propios (`@figtools/cli`, `@figtools/mcp`), y eventualmente extraer
+los adapters a paquetes independientes (`@figtools/adapter-playwright`,
+`@figtools/adapter-rest`) si el core llega a soportar más de un mecanismo a
+la vez.
 
 ## Installation
 
-1. `pnpm install`
+1. `pnpm install` (instala todas las dependencias del monorepo)
 2. Crear un `.env` en la raíz con una sesión real de Figma (necesaria para
    `pnpm test:e2e`, ver [Troubleshooting](#troubleshooting)):
    ```
@@ -24,18 +29,22 @@ diseño de puertos que ya lo anticipa.
    FIGMA_TEST_VIEW_FILE_KEY=...    # archivo con permiso de solo view
    FIGMA_TEST_VIEW_NODE_ID=...
    ```
-3. `pnpm test` corre los tests unitarios (no requiere `.env`)
+3. `pnpm test` corre los tests unitarios de todos los paquetes (no requiere
+   `.env`); `pnpm --filter @figtools/core test` corre solo los de ese
+   paquete.
 
 ## Examples
 
-El core se usa de forma programática, inyectando sus tres puertos con
-implementaciones concretas de Playwright:
+`@figtools/core` se usa de forma programática, inyectando sus tres puertos
+con implementaciones concretas de Playwright:
 
 ```typescript
-import { createFigmaScraperCore } from "./src/figma/core";
-import { PlaywrightFigmaGateway } from "./src/adapters/playwright/playwright-figma-gateway";
-import { PlaywrightLogin } from "./src/adapters/playwright/playwright-login";
-import { CookieSessionStore } from "./src/adapters/cookie-session-store";
+import {
+  createFigmaScraperCore,
+  PlaywrightFigmaGateway,
+  PlaywrightLogin,
+  CookieSessionStore,
+} from "@figtools/core";
 
 const core = createFigmaScraperCore({
   sessionStore: new CookieSessionStore(),
@@ -61,7 +70,7 @@ if (!result.ok) {
 `PlaywrightFigmaGateway` detecta solo, sin configuración, si el usuario tiene
 permiso de edición o de solo lectura sobre el archivo, y lee el panel de
 propiedades correspondiente — ver
-[`adr/ADR-panel-reader-bridge.md`](./adr/ADR-panel-reader-bridge.md).
+[`packages/core/adr/ADR-panel-reader-bridge.md`](./packages/core/adr/ADR-panel-reader-bridge.md).
 
 ## Troubleshooting
 
@@ -80,11 +89,11 @@ propiedades correspondiente — ver
 
 ## Additional resources
 
-- [`adr/ADR-figma-scraper-core.md`](./adr/ADR-figma-scraper-core.md) — diseño
-  de puertos (Ports & Adapters), modelo de datos, y por qué el core nunca
-  soporta acceso anónimo.
-- [`adr/ADR-panel-reader-bridge.md`](./adr/ADR-panel-reader-bridge.md) — por
-  qué el gateway necesita detectar el modo de panel de Figma en runtime, y
-  qué datos expone cada uno (edición vs. inspección).
-- [`specs/`](./specs) — criterios de aceptación en formato Gauge que derivan
-  ambos ADRs.
+- [`packages/core/adr/ADR-figtools-core.md`](./packages/core/adr/ADR-figtools-core.md)
+  — diseño de puertos (Ports & Adapters), modelo de datos, y por qué el core
+  nunca soporta acceso anónimo.
+- [`packages/core/adr/ADR-panel-reader-bridge.md`](./packages/core/adr/ADR-panel-reader-bridge.md)
+  — por qué el gateway necesita detectar el modo de panel de Figma en
+  runtime, y qué datos expone cada uno (edición vs. inspección).
+- [`packages/core/specs/`](./packages/core/specs) — criterios de aceptación
+  en formato Gauge que derivan ambos ADRs.

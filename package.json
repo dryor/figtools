@@ -1,16 +1,16 @@
 {
-  "name": "figma-scraper-core",
+  "name": "figma-scrapper",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run --project unit",
-    "test:watch": "vitest --project unit",
-    "test:e2e": "vitest run --project e2e"
+    "test": "pnpm -r test",
+    "test:watch": "pnpm --filter @figtools/core test:watch",
+    "test:e2e": "pnpm -r test:e2e",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "playwright": "^1.61.1",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "typescript": "^7.0.2"
   }
 }
