@@ -67,4 +67,4 @@ leer capas de diseño y generar el modelo de datos correspondiente.
 ```
 
 ## Referencias
-- `.claude/knowledge/buenas-practicas-ingenieria/Docs for developers...txt` — Bhatti, Corleissen, Lambourne, Nunez, Waterhouse. Capítulo 1 (entender a la audiencia), Capítulo 2 (plantilla de README, p. 27), Capítulo 3 (redacción para skimming), Capítulo 4 (las 4 revisiones de edición), Capítulo 5 (principios de código de muestra).
+- `.claude/knowledge/buenas-practicas-ingenieria/docsForDevelopersAnEngineerSFieldGuideToTechnical.txt` — Bhatti, Corleissen, Lambourne, Nunez, Waterhouse. Capítulo 1 (entender a la audiencia), Capítulo 2 (plantilla de README, p. 27), Capítulo 3 (redacción para skimming), Capítulo 4 (las 4 revisiones de edición), Capítulo 5 (principios de código de muestra).

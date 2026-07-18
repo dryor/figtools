@@ -18,7 +18,7 @@ Este comando produce documentación únicamente sobre la implementación (el có
 
 ## Referencias
 - `.claude/knowledge/patrones-de-diseno/` — incluye *Refactoring* (Fowler/Beck), *Tidy First* (Kent Beck), *Dive Into Refactoring*: útiles para justificar el patrón nuevo en una actualización de decisión.
-- `.claude/knowledge/buenas-practicas-ingenieria/Your Code As a Crime Scene...txt` — técnicas de análisis forense de código, afines a estructurar un postmortem.
+- `.claude/knowledge/buenas-practicas-ingenieria/yourCodeAsACrimeSceneSecondEditionUseForensic.txt` — técnicas de análisis forense de código, afines a estructurar un postmortem.
 
 ## Ejemplo — postmortem (caso 1)
 ```
