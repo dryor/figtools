@@ -14,6 +14,10 @@ Una interfaz sin implementación bloquea a cualquiera que dependa de ella hasta 
 ## Input
 El `ADR.md` de la funcionalidad.
 
+## Referencias
+- `.claude/knowledge/arquitectura-de-software/` — mismos libros de diseño de APIs que `/backend-connection`, útiles al definir la interfaz antes de tener el backend real.
+- `.claude/knowledge/papers/Applying Design by Contract...txt` — Bertrand Meyer: para especificar precondiciones/postcondiciones de la interfaz antes de crear el stub.
+
 ## Ejemplo
 ```typescript
 interface PokemonSearchService {

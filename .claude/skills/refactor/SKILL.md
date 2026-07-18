@@ -16,6 +16,10 @@ Ayuda a documentar por qué cambia una implementación ya hecha. Hay dos casos, 
 ## Alcance — qué NO cubre
 Este comando produce documentación únicamente sobre la implementación (el código). No cubre vista, interfaces de servicio, ni el combo de ambas — esos artefactos ya tienen sus propios comandos (`/view-implementation`, `/placeholder-implementation`, `/full-implementation`) con sus propios outputs.
 
+## Referencias
+- `.claude/knowledge/patrones-de-diseno/` — incluye *Refactoring* (Fowler/Beck), *Tidy First* (Kent Beck), *Dive Into Refactoring*: útiles para justificar el patrón nuevo en una actualización de decisión.
+- `.claude/knowledge/buenas-practicas-ingenieria/Your Code As a Crime Scene...txt` — técnicas de análisis forense de código, afines a estructurar un postmortem.
+
 ## Ejemplo — postmortem (caso 1)
 ```
 # ADR-busqueda-de-pokemon-postmortem

@@ -3,4 +3,5 @@ node_modules/
 .env.*
 tmp/
 pending-tasks.md
+.claude/knowledge/
 
