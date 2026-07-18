@@ -12,6 +12,9 @@ export interface FigmaScraperCoreDeps {
 export interface FigmaScraperCore {
   resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
+  // Dispara login solo si no hay sesión guardada. A diferencia de
+  // reauthenticate(), no fuerza un login nuevo si la sesión actual es válida.
+  ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
 
 interface ParsedFigmaUrl {
@@ -52,7 +55,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
     return session;
   }
 
-  async function ensureSession(): Promise<FigmaSession> {
+  async function loadOrLogin(): Promise<FigmaSession> {
     const existing = await deps.sessionStore.getSession();
     return existing ?? login();
   }
@@ -69,7 +72,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
       if (!parsedResult.ok) return parsedResult;
       const parsed = parsedResult.value;
 
-      const session = await ensureSession();
+      const session = await loadOrLogin();
       let fetchResult = await fetchRaw(parsed, session);
 
       if (fetchResult.status === "session-expired") {
@@ -110,6 +113,15 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
         return { ok: true, value: session };
       } catch {
         return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "No se pudo completar el login" } };
+      }
+    },
+
+    async ensureSession() {
+      try {
+        const session = await loadOrLogin();
+        return { ok: true, value: session };
+      } catch {
+        return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "No se pudo iniciar sesión" } };
       }
     },
   };
