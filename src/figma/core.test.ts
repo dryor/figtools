@@ -20,7 +20,7 @@ function rawElement(overrides: Partial<RawFigmaNode> = {}): RawFigmaNode {
   return {
     id: "1:23", name: "Button", type: "COMPONENT",
     position: { x: 10, y: 20 }, size: { width: 100, height: 40 },
-    styles: {}, image: null, children: [],
+    visible: true, styles: {}, image: null, children: [],
     ...overrides,
   };
 }
@@ -29,7 +29,7 @@ function rawPage(overrides: Partial<RawFigmaNode> = {}): RawFigmaNode {
   return {
     id: "0:1", name: "Page 1", type: "CANVAS",
     position: { x: 0, y: 0 }, size: { width: 0, height: 0 },
-    styles: {}, image: null,
+    visible: true, styles: {}, image: null,
     children: [rawElement({ id: "1:10", name: "Frame", type: "FRAME" })],
     ...overrides,
   };

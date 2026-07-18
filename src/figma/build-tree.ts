@@ -7,6 +7,7 @@ function toFigmaNode(raw: RawFigmaNode): FigmaNode {
     type: raw.type,
     position: raw.position,
     size: raw.size,
+    visible: raw.visible,
     styles: raw.styles,
     image: raw.image,
     children: raw.children.map(toFigmaNode),

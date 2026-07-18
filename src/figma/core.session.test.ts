@@ -8,7 +8,7 @@ const VALID_SESSION = { credential: "cookie-jar-abc" };
 const rawNode: RawFigmaNode = {
   id: "1:1", name: "Frame", type: "FRAME",
   position: { x: 0, y: 0 }, size: { width: 1, height: 1 },
-  styles: {}, image: null, children: [],
+  visible: true, styles: {}, image: null, children: [],
 };
 
 describe("gestionar_sesion_figma: Iniciar sesión de forma interactiva sin sesión previa", () => {

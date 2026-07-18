@@ -7,9 +7,9 @@ describe("build-tree: resolve", () => {
     const raw: RawFigmaNode = {
       id: "1:1", name: "Button", type: "COMPONENT",
       position: { x: 1, y: 2 }, size: { width: 10, height: 20 },
-      styles: {}, image: null,
+      visible: true, styles: {}, image: null,
       children: [
-        { id: "1:2", name: "Label", type: "TEXT", position: { x: 0, y: 0 }, size: { width: 1, height: 1 }, styles: {}, image: null, children: [] },
+        { id: "1:2", name: "Label", type: "TEXT", position: { x: 0, y: 0 }, size: { width: 1, height: 1 }, visible: true, styles: {}, image: null, children: [] },
       ],
     };
 
@@ -26,10 +26,10 @@ describe("build-tree: resolve", () => {
     const raw: RawFigmaNode = {
       id: "0:1", name: "Page 1", type: "CANVAS",
       position: { x: 0, y: 0 }, size: { width: 0, height: 0 },
-      styles: {}, image: null,
+      visible: true, styles: {}, image: null,
       children: [
-        { id: "1:10", name: "Frame A", type: "FRAME", position: { x: 0, y: 0 }, size: { width: 10, height: 10 }, styles: {}, image: null, children: [] },
-        { id: "1:20", name: "Frame B", type: "FRAME", position: { x: 0, y: 20 }, size: { width: 10, height: 10 }, styles: {}, image: null, children: [] },
+        { id: "1:10", name: "Frame A", type: "FRAME", position: { x: 0, y: 0 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, children: [] },
+        { id: "1:20", name: "Frame B", type: "FRAME", position: { x: 0, y: 20 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, children: [] },
       ],
     };
 
