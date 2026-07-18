@@ -20,3 +20,7 @@
 - Evitar comparaciones reduccionistas 1 a 1.
 - Sin tono emocional o condescendiente ("exactamente!", "diste en el clavo").
 - Sin subtítulos tipo tabloide/clickbait.
+
+## Comentarios en código
+- Solo comentarios "why": la razón detrás de una decisión no obvia, un workaround, una restricción externa. Nunca "what": si el comentario describe lo que la línea siguiente ya dice con nombres claros, se elimina.
+- La redacción de un comentario "why" sigue las mismas reglas de Redacción y Léxico de este documento (sin "esto no es X, es Y", sin evaluativos sin evidencia, etc.).

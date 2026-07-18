@@ -85,11 +85,12 @@ describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo punt
     if (result.status === "ok") {
       expect(result.value.id).toBe(process.env.FIGMA_TEST_VIEW_NODE_ID);
       expect(result.value.type).toBeTruthy();
-      // El panel de inspección expone Width/Height como texto plano — a
-      // diferencia del panel de edición, acá también deberían resolver
-      // width/height los nodos con auto-layout Fill/Hug (ver
-      // adr/ADR-panel-reader-bridge.md).
-      expect(result.value.position.x).not.toBeNull();
+      // El panel de inspección expone Width/Height como texto plano, incluso
+      // para nodos con auto-layout Fill/Hug (a diferencia del panel de
+      // edición). Confirmado corriendo contra una sesión real, en varios
+      // nodos (raíz, anidado, instancia, forma libre): nunca expone X/Y —
+      // position queda siempre null en este modo.
+      expect(result.value.position.x).toBeNull();
       expect(result.value.size.width).not.toBeNull();
     }
 
