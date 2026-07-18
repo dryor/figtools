@@ -21,6 +21,9 @@ Una User Story casi siempre deja implícitas varias decisiones de comportamiento
 3. Pregunta al humano por cada hueco detectado en vez de inventar la respuesta. Una pregunta directa vale más que un escenario adivinado.
 4. Con las respuestas, escribe o completa el spec en Gauge.
 
+## Referencias
+- `.claude/knowledge/bdd/bddInAction2ndEditionMeapV13.txt` — Smart & Molak, *BDD in Action* (2nd ed.). Cap. 5-6 (describir e ilustrar features con ejemplos concretos) y cap. 7 (de ejemplos a especificaciones ejecutables) son el proceso que sigue esta skill al convertir una User Story en escenarios Gauge.
+
 ## Formato de salida
 Usa siempre esta estructura:
 ```
