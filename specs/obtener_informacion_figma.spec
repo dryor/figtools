@@ -2,11 +2,23 @@
 
 ADR: [ADR-figma-scraper-core](../adr/ADR-figma-scraper-core.md)
 
-* El usuario tiene una sesión válida
+* El usuario tiene una sesión válida, con permiso de al menos lectura sobre el archivo
 
-## Obtener un nodo puntual de un diseño de Figma
+## Obtener un nodo puntual de un diseño de Figma con permiso de edición
+* El usuario tiene permiso de edición sobre el archivo
 * El usuario proporciona la URL de un nodo puntual de un archivo de Figma
-* El sistema devuelve ese nodo, incluyendo su tipo, posición, tamaño, estilos, una imagen representativa y la jerarquía completa de sus hijos
+* El sistema devuelve ese nodo, incluyendo su tipo, posición, tamaño, estilos, visibilidad, una imagen representativa y la jerarquía completa de sus hijos
+
+## Obtener un nodo puntual de un diseño de Figma con permiso de solo lectura
+* El usuario tiene permiso de solo lectura sobre el archivo, en una organización que habilita el panel de inspección para viewers
+* El usuario proporciona la URL de un nodo puntual de un archivo de Figma
+* El sistema devuelve ese nodo, incluyendo su tipo, posición, tamaño, estilos, visibilidad, una imagen representativa y la jerarquía completa de sus hijos
+
+## Obtener un nodo puntual sin panel de datos disponible
+* El usuario tiene permiso de solo lectura sobre el archivo, en una organización que no habilita el panel de inspección para viewers
+* El usuario proporciona la URL de un nodo puntual de un archivo de Figma
+* El sistema devuelve un error indicando que no pudo leer los datos completos del nodo
+* El sistema no devuelve información parcial
 
 ## Obtener los nodos de una página de un diseño de Figma
 * El usuario proporciona la URL de una página de un archivo de Figma
