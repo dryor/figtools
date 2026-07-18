@@ -1,0 +1,887 @@
+I
+
+
+
+
+                   Applying “Design by
+                   Contract”
+                   Bertrand Meyer
+                   Interactive Software Engineering
+
+
+
+                                                                   s object-oriented techniques steadily gain ground in the world of software
+                                                                   development. users and prospective users of these techniques are clam-
+                                                                   oring more and more loudly for a “methodology” of object-oriented
+                                                         software construction - or at least for some methodological guidelines. This
+                                                         article presents such guidelines, whose main goal is to help improve the reliability
+                                                         of software systems. Reliability is here defined as the combination of correctness
+                                                         and robustness or. more prosaically, as the absence of bugs.
+                                                            Everyone developing software systems. or just using them, knows how pressing
+                                                         this question of reliability is in the current state of software engineering. Yet the
+                                                         rapidly growing literature on object-oriented analysis. design. and programming
+                                                         includes remarkably few contributions on how to make object-oriented software
+                                                         more reliable. This is surprising and regrettable, since at least three reasons justify
+                                                         devoting particular attention to reliability in the context of object-oriented devel-
+                                                         opment:
+
+                                                             The cornerstone of object-oriented technology is reuse. For reusable compo-
+                                                             nents, which may be used in thousands of different applications, the potential
+                                                             consequences of incorrect behavior are even more serious than for application-
+                                                             specific developments.
+                                                             Proponents of object-oriented methods make strong claims about their bene-
+
+                                                                                              .     .
+                                                              Thc object-oriented approach, based o n ~ t h etheory of abstract data types,
+           Reliability iS even mOre                           provides a particularly appropriate framework for discussing and enforcing
+                                                              reliability.
+              important in object-
+            oriented programming                           The pragmatic techniques presented in this article, while certainly not providing
+                                                         infallible ways to guarantee reliability, may help considerably toward this goal.
+             than elsewhere*This                         They rely on the theory of design by contruct. which underlies the design of the
+                                                         Eiffel analysis, design, and programming language’ and of the supporting libraries,
+              article shows how to                       from which a number of examples will be drawn.
+           reduce bugs by building                         The contributions of the work reported below include
+             ’Oftware   components                            a coherent set of nrrthocfological pri/?ciples helping to produce correct and
+           on the basis of carefully                          robust software;
+                                                              a systematic approach to the delicate problem of how to deal with abnormal
+               designed contracts.                            cases. leading to a simple and powerful exception-handling mechanism; and
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+              a better understanding of inherit-        plexity and unwieldiness that often char-      letter or package delivered to another
+              anceandof the associated techniques       acterizes software.                            Paris address, you may decide to deliver
+              (redeclaration, polymorphism, and            Obtaining and guaranteeing reliabil-        it yourself, or you may contract out the
+              dynamic binding) through the no-          ity requires a more systematic approach.       task to a courier service.
+              tion of subcontract, allowing a sys-      In particular, software elements should           Two major properties characterize
+              tematic approach to using these pow-      be considered as implementations meant         human contracts involving two parties:
+              erful but sometimes dangerous             to satisfy well-understood specifications,
+              mechanisms.                               not as arbitrary executable texts. This is        Each party expects some benefits
+                                                        where the contract theory comes in.            from the contract and is prepared to
+             Most of the concepts presented here                                                       incur some obligations to obtain them.
+          have appeared elsewhere. They were                                                              These benefits and obligations are
+          previewed in the book Object-Oriented         The notion of contract                         documented in a contract document.
+          Software Construction’; and a more com-
+          plete exposition was presented in a re-           Assume you are writing some pro-           Table 1 shows an imaginary roster of
+          cent book chapter,’ from which this ar-        gram unit implementing a task to be           obligations and benefits for the courier
+          ticle has been adapted. More profoundly,       performed at runtime. Unless the task         service of the example.
+          this work finds its root in earlier work       is trivial, it involves a number of sub-         A contract document protects both
+          on systematic program                          tasks. For example, it might appear as        sides:
+          and abstract data types. h-X This article
+          focuses on the central ideas, introduc-           my-task is                                     It protects the client by specifying
+          ing them concisely for direct applica-              do                                       how much should be done: The client is
+          tion by developers.                                   subtask, ;                             entitled to receive a certain result.
+                                                                subtask2 ;                                 It protects the contractor by speci-
+                                                                ...                                    fying how little is acceptable: The con-
+          Defensive programming                                 subtask,, ;                            tractor must not be liable for failing to
+          revisited                                           end                                      carry out tasks outside of the specified
+                                                                                                       scope.
+                                                         a form that suffices for this discussion.
+             Software engineering and program-           although in many cases the control struc-        As evidenced by this example, what is
+          ming methodology textbooks that dis-           ture linking the various subtasks is less     an obligation for one party is usually a
+          cuss reliability often emphasize the tech-     simple than the mere sequencing shown         benefit for the other.
+          nique known as defensive programming,          here.                                            This example also suggests a some-
+          which directs developers to protect ev-           For each of these subtasks, you may        what more subtle observation, which is
+          ery software module against the slings         either write the corresponding solution       important in the following discussion
+          and arrows of outrageous fortune. In           in line as part of the body of my-task, or    (and in studying the application of these
+          particular, this encourages programmers        rely on a call to another unit. The deci-     ideas to concurrent computation). If the
+          to include as many checks as possible,         sion is a typical design trade-off: Too       contract is exhaustive, every “obliga-
+          even if they are redundant with checks         much calling causes fragmentation of          tion” entry also in a certain sense de-
+          made by callers. Include them anyway,          the software text: too little results in      scribes a “benefit” by stating that the
+          the advice goes; if they do not help. at       overcomplex individual units.                 constraints given are the only relevant
+          least they will not harm.                         Assume you decide to use a routine         ones. For example, the obligation entry
+             This approach suggests that routines        call for one of the subtasks. This is sim-    for the client indicates that a client who
+          should be as general as possible. A par-       ilar to the situation encountered in ev-      satisfies all the constraints listed is enti-
+          tial routine (one that works only if the       eryday life when you decide to contract       tled to the benefits shown in the next
+          caller ensures certain restrictive condi-      out for a certain (human) task rather         entry. This is the No Hidden Clauses
+          tions at the time of the call) is consid-      than doing it yourself. For example. if       rule: With a fully spelled out contract
+          ered dangerous because it might pro-           you are in Paris and want an urgent           between honest parties, no requirement
+          duce unwanted consequences if a caller
+          does not abide by the rules.
+             This technique, however, often de-          Table 1. Example contract.
+          feats its own purposes. Adding possibly
+          redundant code “just in case” only con-           Party          Obligations                             Benefits
+          tributes to the software’s complexity -
+          the single worst obstacle to software             Client         Provide letter or package of no         Get package delivered to
+          quality in general. and to reliability in                        more than 5 kgs. each dimension         recipient in four hours or
+          particular. The result of such blind check-                      no more than 2 meters.                  less.
+          ing is simply to introduce more soft-                            Pay 100 francs.
+          ware. hence more sources of things that
+          could go wrong at execution time, hence           Supplier       Deliver package to recipient            No need to deal with
+          the need for more checks, and so on ad                           in four hours or less.                  deliveries too big, too
+          infinitum. Such blind and often redun-                                                                   heavy, or unpaid.
+          dant checking causes much of the com-
+
+           October 1992                                                                                                                          41
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+ I
+
+
+
+
+           other than the contract’s offi-                                                                              This is the contract en-
+           cial obligations may be im-             routine-name (argument declarations) is                           forced by put-child on any
+           posed on the client as a condi-                           -- Header comment                               potential caller. It contains
+           tion for obtaining t h e                        require                                                   the most important informa-
+           contract’s official benefits.                             Precondition                                    tion that can be given about
+              The N o Hidden Clauses                       do                                                        the routine: what each party
+                                                                     Routine body, Le. instructions                  in the contract must guaran-
+           principle does not prevent us                   ensolte
+           from including references.                                Postcondition                                   tee for a correct call, and what
+           implicit or explicit, to rules                  end                                                       each party is entitled to in
+           not physically part of the con-                                                                           return. Because this informa-
+           tract. For example, general          Figure 1. A routine equipped with assertions.                        tion is so crucial to the con-
+           rules such as the relevant laws                                                                           struction of reliable systems
+           and common business prac-                                                                                 using such routines, it should
+           tices are implicitly considered         put-child (new: NODE) is                                          be a formal part of the rou-
+           to be part of every contract of                    -- Add new to the children of current node             tine’s text (see Figure 2).
+           a certain kind. even if not ex-              require                                                         A few more details about
+           plicitly repeated in the text of                   new /= Void                                            the rules of object-oriented
+           each contract. They apply to                 do                                                           programming as embodied in
+           both client and supplier and                        ... Insertion algorithm ...                           Eiffel should help make this
+           will lead below t o the notion                 ensure                                                     example completely clear:
+           of class invariant.                                 new.parent = Current;
+                                                               child-count = old child-count + 1                           A reference such as new
+                                                          end -- put-child                                            is either void (not attached
+           Assertions:                                                                                                to any object) or attached to
+           Contracting for                      Figure 2. Assertions for child insertion routine.                     an object. In the first case, it
+                                                                                                                      equals the value Void. Here
+           software                                                                                                   the precondition expresses
+                                                           assertion is a list of Boolean expres-         that the reference new must not be void,
+              It is not difficult t o see how the pre-     sions, separated by semicolons; here a         as stated informally by the correspond-
+           ceding ideas apply to software construc-        semicolon is equivalent to a Boolean           ing entry in Table 2.
+           tion. If the execution of a certain task        “and” but allows individual identifica-             In accordance with Eiffel’s object-
+           relies on a routine call to handle one of       tion of the assertion clauses.                 oriented principles, the routine will ap-
+           its subtasks, it is necessary to specify the       The precondition expresses require-         pear in the text of a class describing
+           relationship between the client (the call-      ments that any call must satisfy if it is to   trees, or tree nodes. This is why it does
+           er) and the supplier (the called routine)       be correct; the postcondition expresses        not need an argument representing the
+           as precisely as possible. The mecha-            properties that are ensured in return by       node to which the routine will add the
+           nisms for expressing such conditions            the execution of the call.                     reference new as a child; all routines of
+           are called assertions. Some assertions.            A missing precondition clause is equiv-     the class are relative to a typical tree
+           called preconditions and postconditions.        alent to the clause Require True, and a        node, the “current instance” of the class.
+           apply to individual routines. Others, the       missing postcondition to the clause En-        In a specific call such as some-
+           class invariants, constrain all the rou-        sure True. The assertion True is the           nodeput-child (x),the value before the
+           tines of a given class and will be dis-         least committing of all possible asser-        period, here some-node, serves as the
+           cussed later.                                   tions. Any possible state of the compu-        current instance.
+               It is important to include the precon-      tation will satisfy it.                           *In the text of the class, the pre-
+           ditions and postconditions as part of              Consider,for example. in aclass TREE        defined name Current serves, if neces-
+           routine declarations (see Figure 1).            describing tree nodes. a routineput-child      sary, to refer to the current instance.
+               In this Eiffel notation, the Require        for adding a new child to a tree node          Here it is used in the postcondition.
+           and Ensure clauses (as well as the head-        Currmr. The child is accessible through             The notation Old child-count, ap-
+           er comment) are optional. They intro-           a reference, which must be attached to         pearing in the postcondition ofput-child,
+           duce assertions - respectively the pre-         an existing node object. Table 2 infor-         denotes the value of child-count as cap-
+           condition and the postcondition. Each           mally expresses the contract.                   tured on entry to a particular call. In
+
+            Table 2. The put-child contract.
+             ~~~~~~~
+
+
+
+
+                       Party      Obligations                                            Benefits
+
+                       Client     Use as argument a reference, say new. to an            Get updated tree where the Current node has
+                                  existing node object.                                  one more child than before; new now has
+                                                                                         Current as its parent.
+                       Supplier   Insert new node as required.                           N o need to d o anything if the argument is not
+                                                                                         attached to an object.
+
+
+            42                                                                                                                        COMPUTER
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+I
+
+
+
+
+               other words, the second clause of                                                                      though practically significant,
+               the postcondition expresses that          if new = Void then                                           comes only after achieving that
+               t h e routine must increase                        ...Take care of special case ...                    more fundamental goal.
+               child-count by one. The construct         else                                                           Another way of expressing this
+               Old may appear only in a routine
+                                                                  ...Take care of standard case ...                   observation is to notice that as-
+                                                         end
+               postcondition.                                                                                         sertions d o not describe special
+                                                      Figure 3. Handling a special case.                              but expected cases that call for
+                                                                                                                      special treatment. In other words,
+               The role of                                                                                            the above assertions are not a
+               assertions                                       assertions are monitored at runtime,           way to describe (for example) the han-
+                                                                depending on programmer wishes. But            dling of void arguments to put-child. If
+                                                                thisisnot acrucial question at thispoint.      we wanted to treat void arguments as an
+                 You may well be wondering what                 The prime goal of this discussion is to        acceptable (although special) case, we
+               happens if one of these conditions fails         find ways of writing reliable software  ~      would handle it not through assertions
+               to be satisfied during execution. This           systems that work.Thequestion ofwhat           but through standard conditional con-
+               question will be answered by whether             happens when they do not work. al-             trol structures (see Figure 3).
+
+
+
+                  Further sources
+                     One of the two primary sources of inspiration for this work       The rescue clause notion was actually derived from a cor-
+                  is the research on program proving and systematic program          respondingformal notion of surrogate function, also called
+                  construction pioneered by Floyd,’ Hoare,2and Dijk~tra.~            doppelgiinger, which appeared in the specification method
+                  Other well-knownwork on the application of proof methods           and language M,‘sa direct successor to Abrial‘s original 2
+                  to software construction includes contributions by Gries4          1ang~age.l~  Like 2 and unlike Eiffel, M was a formal specifi-
+                  and Milk5The other major influence is the theory of ab-            cation language, not an executable language. Functions in
+                  stract data types (see references in the body of the article).     an M specification may be partial. A surrogate is associated
+                     The use of assertions in an object-oriented language and        with a partial function and serves as a backup for arguments
+                  the approach to inheritance presented here (based on the           that do not belong to that function’s domain.
+                  notion of subcontracting)appear original to Eiffel. The ex-
+                  ception-handlingmodel and its implementationare also
+                  among Eiffel’s contributions. These mechanisms, and the             Refetences
+                  reasoningthat led to them, are discussed in detail in refer-
+                  ences 1 and 2 of the main bibliography at the end of the ar-         1. R.W. Floyd, “AssigningMeanings to Programs,” P m . Am. Math.
+                  ticle.                                                                  Soc. Symp. in Applied Math., Vol. 19, J.T. Schwartz, ed.. American
+                                                                                          Mathematical Society, Providence, R.I., 1967, pp. 19-31.
+                     The notion of class invariant comes directly from Hoare’s
+                  data invariank6 Invariants, as well as other assertions, also        2. C.A.R. Hoare, ”An Axiomatic Basis for Computer Programming,”
+                                                                                          Comm. ACM, Vol. 12, No. 10, Oct. 1969, pp. 576-580, 583.
+                  play an important role in the VDM software specification
+                  method, as described by Jones.7 The transposition of data            3. E.W. Dijkstra, A Discipline of Programming, Prentice Hall, Engle-
+                  invariants to object-oriented software development, in the              wood Cliffs, N.J., 1976.
+                  form of class invariants, appears to be new with Eiffel.             4. D. Gries. The Science of Programming, Springer-Verlag,Berlin
+                     Nonobject-orientedresearch languages that support as-                and New York, 1981.
+                  sertions have included Euclidsand Alphards; see also the             5. H.D. Mills et al., Principles of Computer Programming: A Maths
+                  Ada-basedspecification language Anna.lo CLU, cited in the               matical Approach, Allyn and Bacon, Boston, 1987.
+                  text, includes nonformal assertions.                                 6. C.A.R. Hoare, ‘Proof of Correctness of Data Representations,”
+                     The view of programs as mechanisms to compute partial                Acta lnfonnatica,Vol. 1, No. 4, 1972, pp. 271-281.
+                  functions is central in the mentionedVDM method.                     7. C.B. Jones, Systematic Soffware Development Using VDM, Pren-
+                     Another view of exceptions can be found in Cristian.”                tice Hall, Englewood Clis, N.J., 1986.
+                  Eiffel’s notion of a rescue clause bears some resemblance            8. B.W. Lampson et al., ‘Report on the ProgrammingLanguage Eu-
+                  to Randell’s recovery blocks,12but the spirit and aims are              clid,” SlGPlan Notices, Vol. 12, No. 2, Feb. 1977, pp. 1-79.
+                  different. Recovery blocks as defined by Randell are alter-
+                                                                                       9. Mary Shaw et al., Alphard: form and Content, Springer-Verlag,
+                  nate implementationsof the original goal of a routine, to be            Berlin and New York, 1981.
+                  used when the initial implementationfails to achieve this
+                                                                                      10. D. Luckham and F.W. von Henke, ‘An Overview of Anna, a Speci-
+                  goal. In contrast, a rescue clause does not attempt to carry            fication Language for Ada,” /E€Software, Vol. 2, No. 2, Mar.
+                  on the routine’s official business; it simply patches things up         1985, pp. 9-22.
+                  by bringing the object to a stable state. Any retry attempt
+                                                                                      11. F. Cristian, Y)n Exceptions, Failures, and Errors,” Technology and
+                  uses the original implementationagain. Also, recovery                   Science oflnfonnatics,Vol. 4, No. 4, July-Aug. 1985.
+                  blocks require that the initial system state be restored be-
+                                                                                      12. B. Randell, “System Structure for Software Fault Tolerance,” /E€€
+                  fore an alternate implementationis tried after a failure. This          Trans. Software Eng., Vol. SE-I, No. 2, June 1975, pp. 220-232.
+                  appears impossibleto implement in any practical environ-
+                  ment for which efficiency is of any concern. Eiffel’s rescue        13. B. Meyer, ‘M: A System Description Method,”Tech. Report
+                                                                                          TRCS85-15. Computer Science Dept., Univ. of California, Santa
+                  clauses do not require any such preservationof the state;               Barbara, 1986.
+                  the only rule is that the rescue clause must restore the
+                                                                                      14. J . 4 . Abrial, S.A. Schuman, and B. Meyer, “A Specification Lan-
+                  class invariant and, if resumption is attempted, the routine            guage,” in On the Construction of Programs, R. McNaughten and
+                  precondition.                                                           R.C. McKeag, eds., Cambridge University Press, England, 1980.
+
+
+
+
+    Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+           Assertions (here the pre-                                                                               ular the design of the librar-
+        condition) are something else:                                                                             ies, suggests that the system-
+        ways to describe the condi-                    left I= Void ierpliss (leftqarent = Current);               atic use of a demanding style
+        tions on which software ele-                   right I= Void intp8ies (right.parent = Current)             can be quite successful. In this
+        ments will work, and the con-                                                                                 __
+                                                                                                                   approach, every routine con-
+                                                                                                                   centrates on doing a well-de-
+        return. By putting the condi-                                                                              fined job so as to do it well,
+        tion new /= Void in the pre-                                                                               rather than attempting to
+        condition, we make it part of the rou-          checking blindly, as with defensive pro- handle every imaginable case. Client
+        tine’s specification; the last form shown        gramming, you can use clearly defined programmers d o not expect miracles.
+        (with the If) would mean that we have           contracts that assign the responsibility As long as the conditions on the use of
+        changed that specification, broadening           for each consistency condition to one of a routine make sense, and the routine’s
+        it to include the special case new = Void        the parties. If the contract is precise and documentation states these conditions
+        as acceptable.                                   explicit, there is no need for redundant (the contract) explicitly, the program-
+            As a consequence. any runtime viola-         checks.                                     mers will be able to use the routine
+        tion of an assertion is not a special case          The stronger the precondition, the properly by observing their part of the
+        but always the manifestation of a soft-          heavier the burden on the client, and deal.
+        ware bug. To be precise:                         the easier for the supplier. The matter       O n e objection to this style is that it
+                                                         of who should deal with abnormal val- seems to force every client to make the
+            A precondition violation indicates           ues is essentially a pragmatic decision same checks, corresponding to the pre-
+        a bug in the client (caller). The caller         about division of labor: The best solu- condition, and thus results in unneces-
+        did not observe the conditions imposed           tion is the one that achieves the simplest sary and damaging repetitions. But this
+        on correct calls.                                architecture. If every routine and caller argument is not justified:
+            A postcondition violation is a bug in        checked for every possible call error,
+        the supplier (routine). The routine failed       routines would never perform any use-           The presence of a preconditionp in
+        to deliver on its promises.                      ful work.                                   a routine r does not necessarily mean
+                                                            In many existing programs, one can that every call must test for p , as in
+                                                         hardly find the islands of useful pro-
+         Observations on                                 cessing in oceans of error-checking code.     if x . p then
+         software contracts                              In the absence of assertions, defensive                 x.r
+                                                         programming may be the only reason-           else
+                                                         able approach. But with techniques for                  ... Special Treatment ...
+           In Table 2, the bottom-right entry is         defining precisely each party’s respon-       end
+         particularly noteworthy. If the precon-         sibility, as provided by assertions, such
+         dition is not satisfied, the routine is not     redundancy (so harmful to the consis- What the precondition means is that the
+         bound to d o anything, like a mail deliv-       tency and simplicity of the structure) is client must guarantee propertyp; this is
+         ery company given a parcel that does            not needed.                                 not the same as testing for this condition
+         not meet the specification. This means                                                      before each call. If the context of the
+         that the routine body should not be of                                                      call implies p , then there is no need for
+         the form mentioned above:                       Who should check?                           such a test. A typical scheme is
+
+           if new = Void then                              The rejection of defensive program-           x.s; x . r
+                   ...                                  ming means that the client and supplier
+           else                                         are not both held responsible for a con-       where the postcondition of s implies p .
+                   ...                                  sistency condition. Either the condition
+           end                                          is part of the precondition and must be           *Assume that many clients will in-
+                                                        guaranteed by the client, or it is not         deed need to check for the precondi-
+            Using such a construction would de-         stated in the precondition and must be         tion. Then what matters is the “Special
+         feat the purpose of having a precondi-         handled by the supplier.                       Treatment.” It is either the same for all
+         tion (Require clause). This is an abso-           Which of these two solutions should         calls o r specific to each call. If it is the
+         lute rule: Either you have the condition       be chosen? There is no absolute rule;          same, causing undue repetition in vari-
+         in the Require, or you have it in an If        several styles of writing routines are         ous clients, this is simply the sign of a
+         instruction in the body of the routine,        possible, ranging from “demanding”             poor class interface design, using an
+         but never in both.                             ones where the precondition is strong          overly demanding contract for r. The
+            This principle is the exact opposite of     (putting the responsibility on clients) to     contract should be renegotiated and
+         the idea of defensive programming, since       “tolerant” ones where it is weak (in-          made broader (more tolerant) to in-
+         it directs programmers to avoid redun-         creasing the routine’s burden). Choos-         clude the standard Special Treatment
+         dant tests. Such an approach is possible       ing between them is to a certain extent        as part of the routine’s specification.
+         and fruitful because the use of asser-         a matter of personal preference; again,             If. however, the Special Treatment
+         tions encourages writing software to spell     the key criterion is to maximize the           is different for various clients, then the
+         out the consistencyconditions that could       overall simplicity of the architecture.        need for each client to perform its own
+         go wrong at runtime. Then instead of              The experience with Eiffel, in partic-      individual test for p is intrinsic and not
+
+         44                                                                                                                         COMPUTER
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+I
+
+
+
+
+             a consequence of the design method                                                             the creation of every instance of the
+             suggested here. These tests would have                                                         class (every binary tree in this exam-
+             to be included anyway.                                                                         ple). This means that every creation
+                                                                                                            procedure of the class must yield an
+                The last case corresponds to the fre-                                                       object satisfying the invariant. (A class
+              quent situation in which a supplier sim-                                                      may have one or more creation proce-
+              ply lacks the proper context to handle                                                        dures, which serve t o initialize objects.
+              abnormal cases. For example, it is im-                                                        The creation procedure to be called in
+              possible for a general-purpose STACK                                                          any given case is specified in the cre-
+              module to know what to do when re-                                                            ation instruction.)
+              quested to pop an element from an empty                                                             The invariant must be preserved by
+              stack. Only the client - a module from                                                        every exported routine of the class (that
+              a compiler or other system that uses                                                          is t o say, every routine available t o cli-
+              stacks - has the needed information.                                                          ents). Any such routine must guarantee
+                                                                                                            that the invariant is satisfied on exit if it
+                                                                                                            was satisfied on entry.
+              Class invariants                               Figure 5. The invariant in an object's
+                                                             life cycle.                                       In effect. then, the invariant is added
+                 Routine preconditions and postcon-                                                         t o the precondition and postcondition
+              ditions may be used in non-object-ori-         necessary here; they have been added           of every exported routine of the class.
+              ented approaches, although they fit par-       for clarity.)                                  But the invariant characterizes the class
+              ticularly well with the object-oriented          The optional class invariant clause          as a whole rather than its individual
+              method. Invariants, the next major use         appears at the end of a class text:            routines.
+              of assertions, are inconceivable outside                                                         Figure 5 illustrates these requirements
+              of the object-oriented approach.                 class BINARY-TREE [qfeature                  by picturing the life cycle of any object
+                 A class invariant is a property that                                                       as a sequence of transitions between
+              applies to all instances of the class, tran-             ,..   Attribute and routine          "observable" states. Observable states,
+              scending particular routines. For exam-                         declarations ...              shown asshaded rectangles, are the states
+              ple, the invariant of a class describing         invariant                                    that immediately follow object creation,
+              nodes of a binary tree could be of the                  ... As shown above ...                and any states subsequently reached
+              form shown in Figure 4, stating that the         end - class T A B L E                        after the execution of an exported rou-
+              parent of both the left and right chil-                                                       tine of the object's generating class. The
+              dren of a node, if these children exist, is      Two properties characterize a class          invariant is the consistency constraint
+              the node itself. (The Implies operator         invariant:                                     on observable states. (It is not necessar-
+              denotes implication. Eiffel operator pre-                                                     ily satisfied in between these states.)
+              cedence rules make the parentheses un-             The invariant must be satisfied after         The invariant corresponds to what
+
+
+                  On the assertion language
+                    This article includes many examples of typical asser-             guage, with first-order predicate calculus, the need for
+                 tions. But what exactly is permissible in an assertion?              such an extension does not seem crucial. In Eiffel, intend-
+                    Eiffel assertions are Boolean expressions, with a few ex-         ed as a vehicle for industrial software development rather
+                 tensions such as the old notation. Since the whole power             than just for research, the use of function calls in asser-
+                 of Boolean expressions is available, they may include                tions seems to provide an acceptable trade-off between
+                 function calls. Because the full power of the language is            different design goals: reliability, the ability to generate ef-
+                 available to write these functions, the conditions they ex-          ficient code, and overall simplicity of the language.
+                 press can be quite sophisticated. For example, the invari-              In fact, first-order predicate calculus would not neces-
+                 ant of a class ACYCLIC-GRAPH may contain a clause of                 sarily be sufficient. Many practically important properties,
+                 the form                                                             such as the requirement that a graph be noncyclic, would
+                                                                                      require higher order calculus.
+                    not cyclic
+                                                                                         The use of functions - that is to say, computations     -
+                  where cyck is a Boolean-valued function that determines             is not without its dangers. In software, a function is a case
+                  whether a graph contains any cycles by using the appro-             of a routine: it prescribes certain actions. This makes soft-
+                  priate graph algorithm.                                             ware functions imperative, whereas mathematical func-
+                    In some cases, one might want to use quantified expres-           tions are said to be applicative. The major difference is
+                  sions of the form "For all x of type T, p (x) holds" or "There      that software functions can produce side effects (change
+                  exists x of type 7,such that p (x) holds," where p is a cer-        the state of the computation). Introducingfunctions into
+                  tain Boolean property. Such expressions are not available           assertions lets the imperative fox back into the applicative
+                  in Eiffel. It is possible, however, to express the corre-           chicken coop.
+                  sponding properties by using the same technique: calls to              In practice, this means that any function used in asser-
+                  functions that rely on loops to emulate the quantifiers.            tions must be of unimpeachablequality, avoiding any
+                    Although some thought has been given to extend the                change to the current state and any operationthat could
+                  language to include a full-fledged formal specification lan-         result in abnormal situations.
+
+
+
+
+    Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+                                                                                                    I   assumptions remain informal and im-
+               put-child (new: NODE)                                                                    plicit. Here the assertion mechanism
+                              -- Add new to the children of current node                                enables developers to express them ex-
+                      reqaire                                                                           plicitly. Assertion monitoring, then, is a
+                              new I= Void                                                               way tocall thedeveloper’sbluffbycheck-
+                      emore                                                                             ing what the software does against what
+                              newgarent = Current;
+                              child-count = old child-count + 1                                         its author thinks it does. This yields a
+          L                                                                                             productive approach to debugging, test-
+          Figure 6. The short form of a routine.                                                        ing. and quality assurance, in which the
+                                                                                                        search for errors is not blind but based
+                                                                                                        on consistency conditions provided by
+          was called “general conditions” in the         inherited features at the same level as        the developers themselves.
+          initial discussion of contracts: laws or       ”immediate” ones (those declared in               Particularly interesting here is the use
+          regulations that apply to all contracts of     the class itself).                             of precorzditioiis in library classes. I n
+          a certain category. often through a clau5e                                                    the general approach to software con-
+          of the form “all provisions of the X X                                                        struction suggested by the Eiffel meth-
+          code shall apply to this contract.”            Monitoring assertions                          od, developers build successive ”clus-
+                                                                                                        ters” of classes in a bottom-up order.
+                                                            What happens if. during execution. a        from more gcneral (reusable) to more
+          Documenting a                                  system violates one of its own asser-          specific (application-dependent). This
+          software contract                              tions?                                         is the “cluster model” of the software
+                                                            In the development environment. the         life cycle.”’Deciding to release a library
+                                                         answer depends on a compilation op-            cluster 1 for general use normally im-
+             For the contract theory to work prop-       tion. For each class. you may choose           plies a reasonable degree of confidence
+          erly and lead to correct systems. client       from various levels of assertion moni-         in its quality - the belief that no bugs
+          programmers must be provided with a            toring: no assertion checking. precondi-       remain in 1. So i t may be unnecessary to
+          proper description of the interface prop-      tions only (the default). preconditions        monitor the postconditions of routines
+          erties of a class and its routines - the       and postconditions. all of the above plus      in the classes of 1. But the classes of an
+          contracts.                                     class invariants. o r all assertions. (The     application cluster that is a client of I
+             Here assertions can play a key role.        difference between the last two follows        (see Figure 7 ) may still be “young” and
+          since they help express the purpose of a       from the existence of other assertions.        contain bugs: such bugs may show up as
+          software element such as a routine with-       such as loop in\ariants. not covered in        erroneous arguments in calls t o rou-
+          out reference to its implementation.           the present discussion.)                       tines of the classes of 1. Monitoring pre-
+             The short command of the Eiffel en-            For a class compiled under the “no          conditions for classes of 1 helped to find
+          vironment serves to document a class           assertion monitoring” option. assertions       them. This is one of the reasons why
+          by extracting interface information. In        have no effect on system execution. The        precondition checking is the default
+          this approach. software documentation          subsequent options cause evaluation of         compilation option.
+          is not treated as a product to be devel-       assertions at various stages: routine en-
+          oped and maintained separately from            try for preconditions, routine exit for
+          the actual code: instead, it is the more       postconditions. and both steps for in-         Introducing inheritance
+          abstract part of that code and can be          variants.
+          extracted by computer tools.                      Under the monitoring options, the              O n e of the consequences of the con-
+             T h e short command retains only the        effect of an assertion violation is to raise   tract theory is a better understanding
+          exported features of a class and. for an       an exception. The possible responses to        and control of the fundamental object-
+          exported routine, drops the routine body       an exception are discussed later.              oriented notion of inheritance and of
+          and any other implementation-related                                                          the key associated techniques: redecla-
+          details. However. pre- and postcondi-                                                         ration, polymorphism, and dynamic
+          tions are kept. (So is the header com-         Why monitor?                                   binding .
+          ment if present.) For example, Figure 6                                                          Through inheritance. you can define
+          shows what the short command yields               As noted, assertion violations are not      new classes by combiningprevious ones.
+          for the piit routine. It expresses simply      special (but expected) cases; they result      A class that inherits from another has
+          and concisely the purpose of the rou-          from bugs. The main application of run-        all the features (routines and attributes)
+          tine. without reference to a particular        time assertion monitoring. then, is de-        defined in that class, plus its own. But it
+          implementation.                                bugging. Turning assertion checking on         is not required to retain the exact form
+             All documentation on the details of         (at any of the levels previously listed)       of inherited features: It may redeclare
+          Eiffel classes (for example, the class         makes it possible to detect mistakes.          them to change their specification. their
+          specifications in the book on the basic           When writing software. developers           implementation, or both. This flexibili-
+          librariesY)is produced automatically in        make many assumptions about theprop-           ty of the inheritance mechanism is cen-
+          this fashion. Forclasses that inherit from     erties that will hold at various stages of     tral to the power of the object-oriented
+          others, theshort command must be com-          the software‘s execution, especially rou-      method.
+          bined with another tool.flat. which flat-      tine entry and return. I n the usual ap-          For example. a binary tree class could
+          tens out the class hierarchy by including      proaches t o software construction, these      provide a default representation and
+
+          46                                                                                                                        COMPUTER
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+I
+
+
+
+
+              the corresponding implementations for                                                             ing, of course. N o design technique is
+              search and insertion operations. A de-                                                            immune to misuse. But at least it is pos-
+              scendant of that class may provide a                                                              sible to help serious designers use the
+              representation that is specifically adapt-                                                        technique properly; here the contract
+              ed to certain cases (such as almost full                                                          theory provides the proper perspective.
+              binary trees) and redeclare the routines                                                            What redeclaration and dynamic bind-
+              accordingly.                                       I                                              ing mean is the ability to subcontract a
+                 Such a form of redeclaration is called Figure 7. Library cluster and applica-                  task; preventing misuse then means guar-
+              a redefinition. It assumes that the inher- tion cluster.                                          anteeing that subcontractors honor the
+              ited routine already had an implemen-                                                             prime contractor’s promises in the orig-
+              tation. The other form of redeclaration,                                                          inal contract.
+              called effecting, applies to features for flexibility that result from the use of the                Consider the situation described by
+              which the inherited version, known as a object-oriented approach.: Yet these Figure 8. A exports a routine r to its
+              deferred (or abstract) feature, had no techniques may also raise concerns of clients. (For simplicity, we ignore any
+              implementation. but only a specifica- possible misuse: What is to prevent a arguments to r.) A client X executes a
+              tion. The effecting then provides an im- redeclaration from producing an effect call
+              plementation (making the feature ef- that is incompatible with the semantics
+              fective, the reverse of deferred). The of the original version -fooling clients                      u.r
+              subsequent discussion applies to both in a particularly bad way, especially in
+              forms of redeclaration, although for sim- the context of dynamic binding? Noth- where U is declared of type A . Now B , a
+              plicity it concentrates on redefinition.
+                 Redeclaration takes its full power
+              thanks to polymorphism and dynamic
+              binding. Polymorphism is type adapta-
+                                                                  The concurrency issue
+              tion controlled by inheritance. More                   The theory of design by contract raises important questions regarding the
+              concretely, this means that if you have b            application of object-oriented ideas to concurrent computation. In discussing
+              of type B I N A R Y - T R E E and sb of type         contracts, this article mentions that clients may view the precondition of a
+              S P E C I A L - B I N A R Y - T R E E , the latter   routine not just as an obligation but also in part as a benefit, since the con-
+              class a descendant of the former, then               tract implicitly indicates that a call satisfying the precondition will be serviced
+              the assignment                                       correctly. This is the No Hidden Clause rule. For example, if the insertion
+                                                                   routine put for a BOUNDED-QUEUE class has the precondition
+                 h := sh                                              not full
+              is permitted, allowing h to become at-              to state that an insertion operation requires a queue that is not full, then a
+              tached a t runtime t o instances of                 protected call of the form
+              S P E C I A L - B I N A R Y - T R E E , of a more     q: BOUNDED-QUEUE [ TJ;
+              specialized form than the declaration of              XT;
+              b specifies. Of course, this is only possi-           ...
+              ble if the inheritance relation holds be-             if not q.full then
+              tween the two classes as indicated.                           4.Put (4
+                 What happens then for a call of the                end
+              form
+                                                                  will succeed, since the client executing this call has taken the trouble to
+                                                                  check the preconditionexplicitly.
+                 t.insrrt ( v )                                      In parallel computation, however, things are not so nice. The bounded
+                                                                  queue in this example may be used as a bounded buffer, accessible to sev-
+              which applies procedure insert, with                eral processors. The processor in charge of the client, which will carry out
+              argument v, to the object attached to t?            the above instructions, and the processor in charge of q, which will carry out
+              Dynamic binding means that such a call              the execution of put, could be different processors. Then, even if the test for
+              always uses the appropriate version of              q.fullyields false, between the time the client executes this test and the time
+              the procedure - the original one if the             it executes the call q.put (x), quite a few events may have occurred. For ex-
+              object to which t is attached is an in-             ample, another client may have made the queue full by executing its own
+              stance of B I N A R Y - T R E E , the rede-         call to put.
+              fined version if it is an instance of                  In other words, a different semantic interpretation may be necessary for
+              S P E C I A L - B I N A R Y - T R E E . The re-     preconditions in the context of parallel computation. This observation serves
+              verse policy, static binding (using the             as the starting point for some of the current work on models for concurrent
+              declaration of h to make the choice),               object-oriented
+              would be an absurdity: deliberately
+              choosing the wrong version of an oper-              References
+              ation.                                               1. B. Meyer, “Sequentialand Concurrent Object-Oriented Programming,“ in TOOLS 2
+                 The combination of inheritance, re-                  (Technology of Object-Oriented Languages and Systems), Angkor/SOL, Paris, June
+                                                                      1990, pp. 17-28.
+              declaration, polymorphism, and dynamic
+              binding yields much of the power and                 2. J. Potter and G. Jalloul. ‘Models for Concurrent Eiffel,“in TOOLS 6 (Technology of Ob-
+                                                                      ject-Oriented Languagesand Systems), Prentice Hall, Englewood Cliffs, N.J., 1991, pp.
+                                                                      183-192.
+              October 1992
+
+
+
+
+    Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+           descendant of A , redeclares r. Through                                                       cept that consistency constraints on a
+           polymorphism, u may well become at-                                                           parent A also apply to instances of B .
+           tached t o an instance of B rather than                                                         For example, if the invariant for a
+           A . Note that often there is no way to                                         4              class TREE, describing tree nodes, in-
+           know this from the text of X alone: for                                                       cludes the clause
+           example, the call just shown could be in
+           a routine of X beginning with                                                                   child.parent = Current
+                                                           Figure 8. Redefinition of a routine un-
+             some-routine ( U : A ) is ...                                                               expressing that the parent of a node’s
+                                                           der contract.                                 currently active child is the node itself,
+           where the polymorphism only results                                                           this clause will automatically apply t o
+           from a call of the form                                                                       instances of a class BINARY-TREE,
+                                                           language. Eiffel uses a simple conven-        which inherits from TREE. As a result,
+              z.some-routine (v)                           tion. In a redeclaration, it is not permit-   the language specification defines “the
+                                                           ted to use the forms require ... and en-      invariant of a class” as the assertion
+           for which the actual argument v is of           sure .... The absence of a precondition or    obtained by concatenating the asser-
+           type B. If this last call is in a class other   postcondition clause means that the re-       tion in the invariant clause of the class
+           than X , the author of X does not even          declared version retains the original         to the invariants of all parents (obtained
+           know that u may become attached to an           version’s assertion. Since this is the most   recursively under this definition).’
+           instance of B. In fact, he may not even         frequent situation, the class author is          As a result, the invariant of a class is
+           know about the existence of a class B .         not required to write anything special in     always stronger than or equal to the
+              But then the danger is clear. T o ascer-     this case. A class author who does want       invariants of each of its parents.
+           tain the properties of the call u.r, the        to adapt the assertion will use either or        These rules lead t o a better under-
+           author of X can only look at the con-           both of the forms                             standing of why static bindingwould be,
+           tract for r in A. Yet, because of dynamic                                                     as previously stated, such a disaster.
+           binding, A may subcontract the execu-             require else                                Assume again the declaration and call
+           tion of r to B , and it is B’s contract that            newgre
+           will be applied.                                                                                U: A:
+                                                             ensure then
+              How do you avoid “fooling” X in the                  newgost                                 ,..
+           process? There are two ways B could                                                             u.r
+           violate its prime contractor’s promises:        which yield the following as new pre-
+                                                           condition and postcondition:                  where a descendant B of A redefines r.
+               Bcouldmake thepreconditionstron-                                                          Call rA and rBthe two implementations.
+           ger, raising the risk that some calls that        n e w g r e or else originalgrecondition    Then r, must preserve INV,, the invari-
+           are correct from X s viewpoint (they              n e w g o s t and then                      ant of A , and r, must preserve INV,, the
+           satisfy the original client obligations)                   originalgostcondition              invariant of B , which is stronger than or
+           will not be handled properly.                                                                 equal to INV,.
+               B could make the postcondition              where Or Else and And Then are the               There is, of course, no requirement
+           weaker, returning a result less favor-          noncommutative versions of the “or”           that r4 preserve INV,. In fact, class A
+           able than what has been promised to X .         and “and” operators (evaluating their         may have been written long before B ,
+                                                           second argument only if necessary). In        and the author of A does not need to
+              None of this, then, is permitted. But        this way. the new precondition is guar-       know anything about eventual descen-
+            the reverse changes are of course legit-       anteed to be weaker than or equal to the      dants of this class.
+            imate. A redeclaration may weaken the          originals, and the new postcondition is          If LL dynamically becomes attached t o
+            original’s precondition o r it may             guaranteed to be stronger than or equal       an instance of B , dynamic binding re-
+            strengthen the postcondition. Changes          to the originals.                             quires the execution of rHfor this call.
+            of either kind mean that the subcon-                                                         Static binding would trigger r,. Since
+            tractor does a better job than the origi-                                                    this version of the routine is not re-
+            nal contractor - which there is no rea-        Invariants and                                quired to preserve INV,, the result would
+            son to prohibit.                               dynamic binding                               yield a catastrophic situation: an object
+               These rules illuminate some of the                                                        of type B that does not satisfy the con-
+            fundamental properties of inheritance,                                                       sistency constraint -the invariant -of
+            redeclaration, polymorphism, and dy-              In addition to the rules on precondi-      its own class. In such cases, any attempt
+            namic binding. Redeclaration. for all          tions and postconditions, another con-        at understanding software texts or rea-
+            the power it brings to software develop-       straint ties assertions with inheritance:     soning about their runtime behavior
+            ment. is not a way to turn a routine into      Invariants are always passed on to de-        becomes futile.
+            something completely different. The new        scendants.                                       A simple example will make the situ-
+            version must remain compatible with               This is a direct result of the view that   ation more concrete. Assume a class
+            the original specification. although it        inheritance is (among other things) clas-     A C C O U N T describing bank accounts,
+            may improve on it. The noted rules ex-         sification. If we want to consider every       with the attributes shown in Figure Ya
+            press this precisely.                          instance of a class B as being also an         and a procedure to record a new deposit
+               These rules must be enforced by the         instance of R’s ancestors, we must ac-         shown in Figure 9b.
+
+            48                                                                                                                       COMPUTER
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+                                                                                                                 ual examples, one may fault the
+             With this version of the class,
+           ohtaining a n account’s current
+                                                                                                                 design of the exception mecha-
+           balance requires a computation                                                                        nism itself for failing t o encour-
+           expressed by a function. Figure                                                                       age, or even to define, a proper
+           10 shows how the balance func-                                                                        discipline for handling abnor-
+           tion could appear, assuming the                                                                       mal cases.
+                                                     record-deposit   ~
+
+
+
+                                                                                                                     The contract theory provides
+           appropriate functionsum in class
+           T R A N S A CTION-LIST.                                                                               a good starting point for a more
+              In a descendant class A C -                                                                        rational solution. If a routine is
+           C O U N T I , it may be a better                                                                      seen not just as some “piece of
+           space-time trade-off to store the                                                                     code” but as the implementa-
+           current balance with every ac-        Figure 9. Features of a Bank Account class.                     tion of a certain specification -
+           count object. This can b e                                                                            the contract - it is possible t o
+           achieved by redefining the func-                                                                      define a notion of failure. Fail-
+           tion balance into an attribute (a                                                                      ure occurs when an execution of
+           process that is indeed supported                                                                       a routine cannot fulfill the rou-
+           by the language). Naturally, this                                                                      tine’s contract. Possible reasons
+           attribute must be consistent with                                                                      for a failure include a hardware
+           the others; this is expressed by                                                                       malfunction, a bug in the imple-
+           the invariant of A C C O U N T l ,                                                                     mentation, or some external
+           shown in Figure 11.                                                                                    unexpected event.
+               For this to work, however, B                                                                          “Failure” is here the basiccon-
+           must redefine any routine of A         I                                                          i cept. “Exception” is a derived
+            that modified deposits or with-       Figurelo. Computing the balance.                                notion. A n exception occurs
+            drawals; the redefined version                                                                        when a certain strategy for ful-
+           must also modify the balance                                                                           filling a routine’s contract has
+            field of the object accordingly,                                                                      not succeeded. This is not a fail-
+            so as to maintain the invariant.                                                                      ure, at least not yet, because the
+            This is the case, for example,                                                                        routine may have an alternative
+            with procedure record-deposit.                                                                        strategy.
+               Now assume that we have the        Figure 11. Invariant of the Account class.                         The most obvious example of
+            declaration and call                                                                                   exception is the failure of a called
+                                                                                                                                      -_for fulfilling
+                                                                                                                   routine: r’s strategy
+              a: A C C O U N T                            fails t o define precisely what an abnor-     its contract involved a call to s; the call
+              ...                                         mal case is. Then exception handling          failed; clearly, this is an exception for r.
+              a.record-deposit ( 1-000-000)               often becomes a kind of generalized,          A n o t h e r example, previously men-
+                                                          interroutine “goto” mechanism, with no        tioned, is a runtime assertion violation,
+             If in a certain execution, a happens to      clear guidelines for proper use.              if assertions are monitored. It is also
+           be attached to an object of type A C -            T o understand the issue better, I per-    convenient to treat as exceptions the
+           C O U N T 1 at the time of the call, static    formed a study (reported elsewhere’)          signals sent by the operating system or
+           binding would mean applying the orig-          of Ada and CLU textbooks, looking for         the hardware: arithmeticoverflow, mem-
+           inal, ACCOUNTversion of record- de-            examples of exception handling and            ory exhaustion, and the like. They in-
+           posit - which fails t o update the bal-        methodological principles. The results        deed correspond t o failures of calls t o
+           ance field. The result would b e an            were disappointing, as the books showed       basic facilities (arithmetic operations,
+           inconsistent A C C O U N T 1 object and        many examples of triggering exceptions        memory allocation).
+           certain disaster.                              but few of how to handle them. Further-          Equipped with this notion of failure
+                                                          more, some of the latter were hair-rais-      and exception, we can define a coherent
+                                                          ing. For example, one textbook pro-           response to an exception. The excep-
+            Dealing with abnormal                         posed an example of a square root             tion occurs because the strategy used to
+            situations                                    routine which, when confronted with a         achieve the routine’s contract did not
+                                                          negative argument, triggers an excep-         work. Only threepossibleresponses then
+                                                          tion. The exception handler prints a          make sense:
+              The Design by Contract theory has           message and then simply returns to the
+            one more immediate application to the         caller without notifying the caller that         (1) Perhaps an alternative strategy is
+            practice of reliable software develop-        something wrong has occurred - fool-           available. We have lost a battle, but we
+            ment: exception handling.                     ing the caller, as it were, into believing     have not lost the war. In this case the
+               Exceptions -abnormal cases- have           that everything is going according to          routine should put the objects back into
+            been the target of much study: and sev-       plan. Since a typical use for square roots     a consistent state and make another
+            eral programming languages, notably           in a typical Ada program is a missile          attempt, using the new strategy. This is
+            Ada, PLII, and CLU, offer exception-           trajectorycomputation, it iseasy tofore-      called resumption.
+            handling mechanisms. Much of this work        see the probable consequences.                   (2) Perhaps, however, we have lost
+            is disappointing, however, because it             Beyond the bad taste of such individ-      the war altogether. No new strategy is
+
+            October 1992                                                                                                                            49
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+                                                                                                        the user again. Figure 12 shows a solu-
+            get-integerfrom-user: INTEGER is                                                            tion.
+                        -- Read an integer (allow user up to five attempts)                                The first five times the interactive
+                                                                                                        user enters a wrong input, the routine
+                  local                                                                                 starts again, thanks to the Retry. This is
+                          failures: INTEGER
+                   do                                                                                   the direct implementation of resump-
+                       Result := getint                                                                 tion.
+                   r e m                                                                                   The local entity failures serves to
+                                                                                                        record the number of failed calls to
+                          failures :=failures + 1;                                                      getint. Like any integer local entity, it is
+                                                                                                        automatically initialized to zero on rou-
+                          if failures < 5 then                                                          tine call. (The Eiffel language defini-
+                                   message (“Input must be an integer. Please enter again: ”);          tion‘ specifies simple initialization val-
+                                  retry                                                                 ues for every possible type.)
+                          end                                                                              In this example, only one type of ex-
+                                                                                                        ception is possible. In some cases, the
+                  end -- getintegerfrom-user
+                                                                                                        rescue clause might need to discrimi-
+                                                                                                        nate between possible types of excep-
+          Figure 12. Reading an integer with an unsafe primitive.                                       tions and handle them differently. This
+                                                                                                        is made possible through simple fea-
+                                                                                                        tures of the kernel library class E X -
+          available. Then the routine should put          T o specify how a routine should be-          CEPTIONS, although it isn’t necessary
+          back the objects in a consistent state,       have after an exception, the author of          to look at the (straightforward) details
+          give up on the contract, and report fail-     an Eiffel routine may include a “res-           here. This class also provides mecha-
+          ure to the caller. This is called orga-       cue” clause, which expresses the al-            nisms for handling the false alarm case
+          nized panic.                                  ternate behavior of the routine (and is         by specifying that for certain signals
+             (3) A rare but possible third case is      similar to clauses that occur in human          execution may be allowed to resume.
+          the false alarm. This may occur only for      contracts, to allow for exceptional, un-           What happens after five successive
+          operating-system or hardware signals.         planned circumstances). When a rou-             failures of getint? The rescue clause ter-
+          O n some multiwindowing systems, for          tine includes a rescue clause, any              minates without executing a Retry and
+          example, a process receives a signal          exception occurring during the rou-              the routine execution fails (organized
+          (transformed by the runtime into an           tine’s execution interrupts the execu-           panic). The key rule in this case is that
+          exception) when its window is resized.        tion of the body (the Do clause) and             the caller of get-integer will get an ex-
+          In most cases, the process should be          starts execution of the rescue clause.           ception, which it will have to handle by
+          able to continue its execution, possibly      The clause contains zero or more in-             using the same policy, choosing between
+          after taking some corrective actions          structions, one of which may be a Retry.         organized panic, resumption, and false
+          (such as registering the new window           The execution terminates in either of            alarm.
+          dimensions for use by editors and other       two ways:                                          In a typical system, only a handful of
+          tools).                                                                                        routines have an explicit rescue clause.
+                                                              If the rescue clause terminates with-      What if an exception occurs during the
+            The description of both resumption           out executing a Retry, the routine fails.       execution of a routine that has no such
+          and organized panic mentions putting           It reports failure to its caller by trigger-    clause? The rule is simple: An absent
+          back the objects “in a consistent state.”      ing a new exception. This is the orga-          clause is considered equivalent to an
+          This is essential if further executions        nized panic case.                               implicit clause of the form
+          (after an eventual resumption) will use             If the rescue clause executes a Re-
+          the objects again. The notion of consis-       try, the body of the routine (Do clause)          rescue
+          tent state should be clear from the pre-       is executed again.                                         default-rescue
+          ceding discussion: Any exception han-
+          dling, whether for resumption or for              As an example, here is a solution to a      where default-rescue is a general-pur-
+          organized panic, should restore the in-        problem found in many Ada textbooks:           pose procedure that, in its basic form,
+          variant.                                       Using a function getint, which reads an        does nothing. Then an exception simply
+                                                         integer, prompt a user to enter an inte-       starts the rescue clause, which, execut-
+                                                         ger value; if the input is not an integer,     ing the empty default-rescue, causes fail-
+          A disciplined                                  ask again, unless the user cannot pro-         ure of the routine; this triggers the res-
+          exception-handling                             vide an integer after five attempts, in        cue clause, explicit or implicit. If
+                                                         which case a failure occurs. It is as-         exceptions are passed in this manner all
+          mechanism                                      sumed that getint is an external routine,      the way back to the “root object” that
+                                                         perhaps written in C or assembly lan-          started the execution, that execution
+            It is not hard to devise an exception        guage, and we have no control over it. It      halts after printing an exception history
+          mechanism that directly supports the           triggers an exception when applied to          table that clearly documents the se-
+          preceding method for handling abnor-           input that is not an integer; the routine      quence of recorded abnormal events.
+          mal cases.                                     should catch that exception and prompt         But, of course, some routine in the call
+
+          50                                                                                                                         COMPUTER
+
+
+
+
+Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+I
+
+
+
+
+              chain may have a rescue clause. even                                                                4. C . A . R . Hoare. “ A n Axiomatic Basis for
+                                                                                                                     Computer Programming,” Comm. A C M ,
+              one containinga Retry that will attempt            Status of Eiffel                                    Vol. 12. NO. 10. Oct. 1969. pp. 576-580.
+              a resumption.                                                                                          583.
+                 Why define the default behavior as a               The definition of the Eiffel lan-
+              call to rlefuulr-rescite rather than just as       guage, used as the vehicle for                   5. E.W. Dijkstra. A Discipline of Program-
+              an empty rescue clause? The reason                                                                     ming. Prcnticc Hall, Englewood Cliffs,
+                                                                 this article, is in the public do-                  N.J.. 1976.
+              comes from the methodological discus-              main. The language evolution is
+              sion. In the case of organized panic. it is        under the control of an organita-                6. J . A . Coguen. J.W. Thatcher, and E.G.
+              essential to restore the invariant before          tion of users and developers of                     Wagner. “ A n Initial Algebra Approach
+              conceding defeat and surrendering. A                                                                   to the Specification, Correctness. and Im-
+                                                                 Eiffel technology: the Nonprofit                    plementation of Abstract D a t a Types,”
+              null action would not achieve this for a           International Consortium for Eiffel                 in Cirrrenr Trends in Programming Meth-
+              class with a nontrivial invariant.                 (NICE). Membership in NICE is                       OdO/Og?;. Vol. 3. R.T. Yeh. ed.. Prentice
+                 The solution is provided once again             open to any interested organiza-                    Hall. Englewood Cliffs, N.J., 1978. pp.
+              by the coalesced forces of inheritance             tion. The address is PO BOX                         80-149.
+              and assertions. Procedure defuiilt- res-           6884, Santa Barbara, CA 93160.                   7. J.V. Cuttag. “Abstract Data Types and
+              cue. in its default null form. appears as                                                              the Development of D a t a Structures.”
+              a procedure of the general-purpose class                                                               Comm. AC‘M, Vol. 20. No. 6. J u n e 1977,
+              A N Y . This library class, as defined by                                                              pp. 396-404.
+              the language rules,’ is automatically an
+                                                                                                                  8. B. Meyer. “La Description des Struc-
+              ancestor of all possible developer-de-           the postcondition). It is also a part of              tures d e DonnCes,” Bulletin de la Direc-
+              fined classes. So it is the responsibility       the cook’s contract. although perhaps                 tion des Etudes et Recherches d’Electricite
+              of designers of a class C. if they are           an implicit one. to avoid setting the                 d e France. SCrie C (Informatique). No. 2,
+              concerned about possible exceptions              restaurant on fire in the process (to                 Paris, 1976.
+              occurring in routines that do not have           maintain the invariant).
+                                                                                                                  9. B. Meyer. Eifjelc The Libraries. Prentice
+              specific rescue clauses. t o redefine               When the fire fighter is called for                Hall. Englewood Cliffs, N.J., ( t o appear
+               defuiill-rescue so that it will ensure the      help, i n contrast. the state of the restau-          in 1993).
+               class invariant of C.                           rant is not y a r a n t e e d . I t may be burn-
+                 Often, one of the creation procedures         ing or (in the case of a wrong alert) not          I O . B. Meycr. “The New Culture of Software
+                                                                                                                        Development.” T O O L S I (Technology
+               may serve as a redefinition of t/efirirltp      burning. But then the fire fighter’s only                of Object-Oriented Languages and Sys-
+               resew. since creation procedures are            duty is to return thc restaurant to a                    tems). SOL. Paris, Nov. 1989, pp. 13-23.
+               also required to ensure the invariant.          nonburning state. Serving meals to the                   Slightly revised version in Advances in
+                  This illuminates the difference be-          assembled customers is not part of the                   Object-Oriented Software Engineering
+               tween the body (the Do clause) and the          fire fighter’s job description. W                        (sce reference 3).
+               rescue clause:
+
+                   The body must implement the con-
+               tract, or ensure the postcondition. For
+               consistency, it must also abide by the
+                                                               Acknowledgments
+               general law of the land - preserve the
+                                                                  I have been greatly influenced by the orig-
+               invariant. Its job is made a bit easier by      inators of the classical work on systematic
+               the assumption that the invariant will          software development, mentioned in t h e
+               hold initially, guaranteeing that the rou-      “Further sourccs” sidebar. With his usual
+               tine will find object sin a consistent state.   thoroughness. Kim Walden read the text and
+                                                               pointed out errors and possible improve-
+                   I n contrast, the rescue clause may         ments. T h e anonymous referees made sevcr-
+               not make any such assumption: it has no         al useful comments.                                Bertrand Meyer is president of Interactive
+               precondition, since an exception may               Eiffel i, a tradeinark o f the Nonprofit In-    Software Engineering Inc. and Societe des
+               occur at any time. Its reward is a lcss-        ternational Consortium for Eiffel.                 Outils d u Logiciel, Paris. His areas of inter-
+                                                                                                                  est include formal specification, design meth-
+               demanding task. All that it is required                                                            ods, programming languages, interactive sys-
+               to d o on exit is to restore the invariant.                                                        tems, software development environments,
+               Ensuring the postcondition - the con-                                                              and various aspects of object-oriented tech-
+               tract - is not its job.                         References                                         nology.
+                                                                                                                     Meyer holds an engineering degree from
+                                                                                                                  Ecole Polytechnique, an MS from Stanford
+                                                                I . B. Meyer, Erffel: The Lattgziagc.. Prentice   University, and a P h D from the Universityof
+                       useful analogy is the contrast               Hall. Englewood Cliffs. N.J.. 1991.
+
+               A
+                                                                                                                  Nancy. H e is t h e author of a number of
+                       between the grandeur and ser-                                                              technical hooks and articles, editor of the
+                                                                2. B. Meyer. Ohjrcl-OrietitrtlSoiftware Con-      Prentice Hall Object-Oriented Series, and
+                       vitude of two equally respect-              stnicrioti. Prentice Hall. Englewood Cliffs.   chairman of the T O O L S (Technologyof Ob-
+               able professions - cook and fire fight-             N.J.. 1988.                                    ject-Oriented Languages and Systems) con-
+               er. A cook may assume that the restau-                                                             ference series.
+               rant is not burning (satisfies the               3. B. Meycr. “Design by Contract.“ in Ad-
+                                                                   vances in Object-Oriented Software E n -
+               invariant) when the workday begins. If              gineering, D. Mandrioli and B. Meyer.             T h e author can b e contacted at Interactive
+               the restaurant is indeed nonburning.                eds.. Prentice Hall, EnglewoodCliffs,N.J..     Software Engineering, 270 Storke Rd., Suite
+               the cook must prepare meals (ensure                 1991. pp. 1-50,                                7. Goleta, C A 93117.
+
+
+                October 1992                                                                                                                                   51
+
+
+
+
+    Authorized licensed use limited to: Michigan Technological University. Downloaded on February 21,2010 at 19:03:00 EST from IEEE Xplore. Restrictions apply.
+
