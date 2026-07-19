@@ -1,49 +1,97 @@
+*[Leer en español](./CONTRIBUTING.es.md)*
+
 # Contributing
 
 ## Setup
 
-1. `pnpm install` (instala las dependencias de todos los paquetes del
-   workspace)
-2. Crear un `.env` en la raíz con una sesión real de Figma (necesaria para
-   `pnpm test:e2e`, ver [Troubleshooting](#troubleshooting)):
-   ```
-   FIGMA_TEST_CREDENTIAL='[...]'   # cookies de sesión, ver PlaywrightLogin
-   FIGMA_TEST_FILE_KEY=...         # archivo con permiso de edición
-   FIGMA_TEST_NODE_ID=...
-   FIGMA_TEST_VIEW_FILE_KEY=...    # archivo con permiso de solo view
-   FIGMA_TEST_VIEW_NODE_ID=...
-   ```
+1. `pnpm install` (installs dependencies for every package in the workspace)
+
+## Feature workflow
+
+A new feature goes through 4 sequential stages, each one merged before the
+next starts. Each stage has its own PR, and each PR is based on the
+previous stage's branch — not on `main` — so review can happen in
+parallel instead of blocking on a full merge-to-main between stages
+(GitHub's [stacked PRs](https://github.blog/2024-05-15-stacking-pull-requests-with-github/):
+`gh pr create --base <previous-stage-branch>` instead of `--base main`;
+once a stage merges, GitHub retargets its child PR onto `main`
+automatically).
+
+```mermaid
+flowchart TD
+    A([New feature idea]) --> B["/bdd — write Gauge specs"]
+    B --> C[[PR 1: specs]]
+    C --> D{Merge}
+    D --> E["/model — decide architecture, write ADR"]
+    E --> F[[PR 2: ADR]]
+    F --> G{Merge}
+    G --> H["/create-tests — write tests from the spec"]
+    H --> I[[PR 3: tests]]
+    I --> J{Merge}
+    J --> K[Write the implementation]
+    K --> L[[PR 4: implementation]]
+    L --> M([Feature done])
+
+    subgraph stage1 [Stage 1 · Specs]
+        B
+        C
+    end
+    subgraph stage2 [Stage 2 · ADR]
+        E
+        F
+    end
+    subgraph stage3 [Stage 3 · Tests]
+        H
+        I
+    end
+    subgraph stage4 [Stage 4 · Implementation]
+        K
+        L
+    end
+```
+
+1. **Specs** — use the `/bdd` skill (`.claude/skills/bdd/SKILL.md`) to turn
+   a User Story into Gauge acceptance criteria, saved under
+   `packages/<package>/specs/`. The skill interviews you to fill in gaps
+   the User Story left implicit (empty input, error cases). PR 1 only adds
+   or edits the `.spec` file.
+
+2. **ADR** — use the `/model` skill (`.claude/skills/model/SKILL.md`) on
+   the merged spec to decide the architecture: which design pattern (if
+   any) fits, what's volatile vs. stable, and whether to organize by
+   domain or by feature — leaning on the volatility-based decomposition
+   from *Righting Software* (Juval Löwy) rather than intuition alone. Saves
+   the decision under `packages/<package>/adr/`. PR 2 is based on PR 1's
+   branch.
+
+3. **Tests** — use the `/create-tests` skill
+   (`.claude/skills/create-tests/SKILL.md`) to write tests from the spec's
+   acceptance criteria, before any implementation exists. Note: that
+   skill's examples target UI components (Storybook + Playwright +
+   Testing Library) — this monorepo has no Storybook, so in practice what
+   applies here is Vitest, and the tests should assert the spec's
+   observable behavior, not implementation details. PR 3 is based on PR
+   2's branch.
+
+4. **Implementation** — write the code that makes PR 3's tests pass. PR 4
+   is based on PR 3's branch, and is the one that finally merges into
+   `main`.
 
 ## Tests
 
-- `pnpm test` corre los tests unitarios de todos los paquetes (no requiere
-  `.env`).
-- `pnpm --filter @figtools/core test` corre solo los tests unitarios de ese
-  paquete.
-- `pnpm test:e2e` corre los tests end-to-end contra figma.com real (requiere
-  el `.env` del paso de Setup).
-- `pnpm typecheck` corre `tsc --noEmit` en todos los paquetes.
-- `pnpm build` compila todos los paquetes (Rslib) a `packages/*/dist/`.
+- `pnpm test` runs the unit tests for every package.
+- `pnpm --filter @figtools/core test` runs only that package's unit tests.
+- `pnpm test:e2e` — **still work in progress.** These tests drive a real
+  Playwright browser against figma.com, and there's still no stable way to
+  configure which Figma files/nodes they run against — the current fixture
+  mechanism is under revision and likely to change. Don't rely on it yet.
+- `pnpm typecheck` runs `tsc --noEmit` on every package.
+- `pnpm build` builds every package (Rslib) into `packages/*/dist/`.
 
-## Troubleshooting
+## Monorepo structure
 
-- **`pnpm test:e2e` tarda varios minutos**: recorre el árbol completo del
-  nodo de prueba clickeando cada fila del layers panel vía Playwright real
-  contra figma.com — no hay forma de acelerarlo sin dejar de probar contra
-  el DOM real.
-- **`pnpm test:e2e` falla con sesión expirada**: `FIGMA_TEST_CREDENTIAL` son
-  cookies serializadas con expiración; corré el test de
-  `playwright-login.e2e.test.ts` con `FIGMA_E2E_LOGIN=1` para generar una
-  sesión nueva (requiere completar el login a mano en el browser que se
-  abre).
-- **Un nodeId que funcionaba deja de encontrarse**: los nodeIds de hijos en
-  el layers panel son estables solo dentro de una misma carga de página, no
-  entre corridas — confirmado corriendo contra sesiones reales.
-
-## Estructura del monorepo
-
-Cada paquete publicable vive en `packages/<nombre>/`, con su propio
-`package.json`, `tsconfig.json` (que extiende `tsconfig.base.json` de la
-raíz) y `vitest.config.ts`. Los ADRs y specs de cada paquete viven junto a
-su código (`packages/<nombre>/adr/`, `packages/<nombre>/specs/`), no en la
-raíz — documentan decisiones específicas de ese paquete.
+Each publishable package lives in `packages/<name>/`, with its own
+`package.json`, `tsconfig.json` (extending the root's `tsconfig.base.json`)
+and `vitest.config.ts`. Each package's ADRs and specs live next to its code
+(`packages/<name>/adr/`, `packages/<name>/specs/`), not at the root — they
+document decisions specific to that package.
