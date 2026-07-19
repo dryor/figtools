@@ -40,7 +40,7 @@ describe("writeAsJson", () => {
     logSpy.mockRestore();
   });
 
-  it("no escribe ningún archivo cuando no se indica ruta de salida", async () => {
+  it("doesn't write any file when no output path is given", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await writeAsJson("ABC123", fakeResult, {});
@@ -80,7 +80,7 @@ describe("writeAsJson", () => {
     expect(match).toBeDefined();
   });
 
-  it("sobrescribe un archivo existente con el mismo nombre sin pedir confirmación", async () => {
+  it("overwrites an existing file with the same name without asking for confirmation", async () => {
     const outputPath = join(tmpDir, "resultado.json");
     await writeAsJson("ABC123", fakeResult, { outputPath });
 

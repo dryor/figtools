@@ -1,0 +1,59 @@
+name: Publish Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      core:
+        description: 'Publish @figtools/core'
+        type: boolean
+        default: true
+      cli:
+        description: 'Publish @figtools/cli'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Pending changesets mean versions weren't bumped yet — run Release first.
+      - name: Ensure versions are bumped
+        run: pnpm exec changeset status
+
+      - name: Build
+        run: pnpm run build
+
+      # @figtools/cli depends on @figtools/core via workspace:*, so the core is
+      # published first. pnpm rewrites workspace:* to the real version on pack.
+      - name: Publish @figtools/core
+        if: ${{ inputs.core }}
+        working-directory: packages/core
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @figtools/cli
+        if: ${{ inputs.cli }}
+        working-directory: packages/cli
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

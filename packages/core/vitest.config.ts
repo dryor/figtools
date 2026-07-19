@@ -16,12 +16,12 @@ export default defineConfig({
           name: "e2e",
           environment: "node",
           include: ["src/**/*.e2e.test.ts"],
-          // Browser real headed (ver comentario de WAF en
-          // playwright-figma-gateway.ts) contra figma.com real: lento, y
-          // necesita las env vars FIGMA_E2E_LOGIN / FIGMA_TEST_CREDENTIAL /
-          // FIGMA_TEST_FILE_KEY / FIGMA_TEST_NODE_ID. Recorrer un árbol de
-          // nodos real vía UI (hover + click + esperas por nodo) puede
-          // tardar varios minutos si el árbol es grande.
+          // Real headed browser (see the WAF comment in
+          // playwright-figma-gateway.ts) against real figma.com: slow, and
+          // needs the env vars FIGMA_E2E_LOGIN / FIGMA_TEST_CREDENTIAL /
+          // FIGMA_TEST_FILE_KEY / FIGMA_TEST_NODE_ID. Walking a real node
+          // tree via the UI (hover + click + waits per node) can take
+          // several minutes on a large tree.
           testTimeout: 10 * 60 * 1000,
         },
       },

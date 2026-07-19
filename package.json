@@ -2,14 +2,18 @@
   "name": "figtools",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "test": "pnpm -r test",
     "test:watch": "pnpm --filter @figtools/core test:watch",
     "test:e2e": "pnpm -r test:e2e",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "version": "changeset version",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "@types/node": "^26.1.1",
     "typescript": "^7.0.2"
   }

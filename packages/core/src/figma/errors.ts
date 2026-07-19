@@ -3,9 +3,9 @@ export type FigmaScraperErrorCode =
   | "VALIDATION_NOT_FIGMA_URL"
   | "NOT_FOUND_OR_NO_ACCESS"
   | "AUTHENTICATION_FAILED"
-  // El nodo existe y es accesible; el gateway lo confirma pero no encuentra
-  // ningún panel de Figma legible con los datos del nodo, según el permiso
-  // de la sesión sobre el archivo (ver
+  // The node exists and is accessible; the gateway confirms it but can't
+  // find any readable Figma panel with the node's data, depending on the
+  // session's permission on the file (see
   // adr/ADR-panel-reader-bridge.md).
   | "INCOMPLETE_NODE_DATA";
 

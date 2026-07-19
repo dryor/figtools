@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseArgs, decideOutputTarget } from "./cli";
 
 describe("parseArgs", () => {
-  it("parsea una única URL sin flags con el formato por defecto (json)", () => {
+  it("parses a single URL with no flags using the default format (json)", () => {
     const result = parseArgs(["https://www.figma.com/design/ABC123"]);
 
     expect(result.ok).toBe(true);
@@ -74,7 +74,7 @@ describe("parseArgs", () => {
     }
   });
 
-  it("rechaza la invocación sin ninguna URL ni subcomando login", () => {
+  it("rejects the invocation with no URL and no login subcommand", () => {
     const result = parseArgs([]);
 
     expect(result.ok).toBe(false);
@@ -100,22 +100,22 @@ describe("decideOutputTarget", () => {
     expect(target).toEqual({ kind: "file", path: "resultado.json" });
   });
 
-  it("con formato json y una ruta sin extensión, el destino es un directorio", () => {
+  it("with json format and a path with no extension, the destination is a directory", () => {
     const target = decideOutputTarget("./design", "json");
     expect(target).toEqual({ kind: "directory", path: "./design" });
   });
 
-  it("con formato markdown, una ruta con extensión .md se interpreta igual como directorio", () => {
+  it("with markdown format, a path with a .md extension is still interpreted as a directory", () => {
     const target = decideOutputTarget("./design.md", "markdown");
     expect(target).toEqual({ kind: "directory", path: "./design.md" });
   });
 
-  it("con formato markdown, una ruta sin extensión se interpreta como directorio", () => {
+  it("with markdown format, a path with no extension is interpreted as a directory", () => {
     const target = decideOutputTarget("./design", "markdown");
     expect(target).toEqual({ kind: "directory", path: "./design" });
   });
 
-  it("rechaza una extensión no soportada en --output", () => {
+  it("rejects an unsupported extension in --output", () => {
     const target = decideOutputTarget("resultado.yaml", "json");
     expect(target.kind).toBe("unsupported-extension");
   });

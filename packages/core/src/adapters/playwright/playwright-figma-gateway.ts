@@ -5,12 +5,11 @@ import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
 import { createPanelReader } from "./panel-readers/create-panel-reader";
 
-// Selectores confirmados corriendo contra una sesión real de figma.com
-// (ver .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, y
-// FIGMA_TEST_VIEW_* para modo inspección). Las filas del layers panel
-// tienen el nodeId como PREFIJO del testid ("{nodeId}-layers-panel-row").
-// Los selectores propios de cada modo de panel viven en panel-readers/ (ver
-// adr/ADR-panel-reader-bridge.md).
+// Selectors confirmed by running against a real figma.com session (see
+// .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, and FIGMA_TEST_VIEW_*
+// for inspection mode). Layers panel rows have the nodeId as a PREFIX of
+// the testid ("{nodeId}-layers-panel-row"). Each panel mode's own
+// selectors live in panel-readers/ (see adr/ADR-panel-reader-bridge.md).
 const SELECTORS = {
   layerRow: (nodeId: string) => `[data-testid="objects-panel"] [data-testid="${nodeId}-layers-panel-row"]`,
 };
@@ -30,12 +29,12 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
   async fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}`;
     return this.withPage(session, url, async (page) => {
-      // El layers panel no expone una fila propia para el nodo CANVAS: solo
-      // muestra los nodos de nivel superior (frames/groups) de la página
-      // activa. No hay forma de leer ese nodo directamente del DOM, así que
-      // se sintetiza acá: nombre de la página activa (PagesRowWrapper) más
-      // los nodos top-level (menor nivel de indentación entre las filas
-      // visibles sin expandir nada) como children.
+      // The layers panel doesn't expose its own row for the CANVAS node: it
+      // only shows the top-level nodes (frames/groups) of the active page.
+      // There's no way to read that node directly from the DOM, so it's
+      // synthesized here: the active page's name (PagesRowWrapper) plus
+      // the top-level nodes (the lowest indentation level among the rows
+      // visible without expanding anything) as children.
       const pageName = (await page.locator('[aria-current="page"]').first().textContent()) ?? "";
       const topLevelIds = await this.listTopLevelNodeIds(page);
       if (topLevelIds.length === 0) return { status: "not-found-or-no-access" };
@@ -55,8 +54,8 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
           id: fileKey,
           name: pageName,
           type: "CANVAS",
-          // El nodo CANVAS es sintético (ver comentario arriba): no hay
-          // posición/tamaño real que leer del DOM para él.
+          // The CANVAS node is synthetic (see comment above): there's no
+          // real position/size to read from the DOM for it.
           position: { x: null, y: null },
           size: { width: null, height: null },
           visible: true,
@@ -68,13 +67,14 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     });
   }
 
-  // El panel de propiedades no existe hasta que se selecciona un nodo real —
-  // detectPanelMode no tiene nada que inspeccionar antes del primer click
-  // (confirmado: fetchDefaultPage sin este orden devolvía "none" siempre,
-  // aunque el archivo sí tuviera un panel disponible). Por eso se clickea el
-  // nodo semilla acá, se detecta el modo recién con eso en pantalla, y el
-  // PanelReader resultante se reutiliza para el resto del árbol — el modo no
-  // cambia entre nodos de una misma página cargada.
+  // The properties panel doesn't exist until a real node is selected —
+  // detectPanelMode has nothing to inspect before the first click
+  // (confirmed: fetchDefaultPage without this order always returned
+  // "none", even when the file did have a panel available). That's why
+  // the seed node is clicked here, the mode is only detected once that's
+  // on screen, and the resulting PanelReader is reused for the rest of
+  // the tree — the mode doesn't change across nodes of the same loaded
+  // page.
   private async startReading(
     page: Page,
     seedNodeId: string
@@ -122,10 +122,10 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     url: string,
     run: (page: Page) => Promise<FigmaFetchResult<RawFigmaNode>>
   ): Promise<FigmaFetchResult<RawFigmaNode>> {
-    // headless:true dispara el WAF de Figma (403 "The request could not be
-    // satisfied" vía CloudFront) aun con cookies de sesión válidas; en
-    // headed la misma sesión responde 200. Confirmado corriendo ambos modos
-    // contra una sesión real.
+    // headless:true triggers Figma's WAF (403 "The request could not be
+    // satisfied" via CloudFront) even with valid session cookies; in
+    // headed mode the same session responds 200. Confirmed by running
+    // both modes against a real session.
     const browser = await chromium.launch({ headless: false });
     try {
       const context = await browser.newContext();
@@ -140,9 +140,9 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
         return { status: "not-found-or-no-access" };
       }
 
-      // properties-panel existe en el DOM incluso sin selección; lo que
-      // marca que el archivo terminó de cargar es que el layers panel ya
-      // tiene al menos una fila.
+      // properties-panel exists in the DOM even with no selection; what
+      // marks the file as done loading is that the layers panel already
+      // has at least one row.
       await page.waitForSelector('[data-testid$="-layers-panel-row"]');
       return await run(page);
     } finally {
@@ -179,22 +179,22 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       size: { width, height },
       visible,
       styles,
-      // Requiere la API de export de imágenes de Figma; ese flujo nunca se
-      // diseñó, así que queda sin resolver por ahora.
+      // Requires Figma's image export API; that flow was never designed,
+      // so it's left unresolved for now.
       image: null,
       children,
     };
   }
 
-  // El layers panel está virtualizado: los hijos de un nodo colapsado no
-  // existen en el DOM hasta expandirlo, y el caret de expansión solo se
-  // vuelve visible/clickeable tras hover sobre la fila (confirmado
-  // corriendo contra una sesión real). No hay data-node-id ni jerarquía
-  // explícita en el marcado: la única señal de "es hijo directo" es que la
-  // fila quede inmediatamente debajo del padre, en orden visual (posición Y
-  // del wrapper), con un nivel de indentación exactamente uno mayor que el
-  // del padre. Se corta al llegar a la primera fila con indentación menor
-  // o igual a la del padre.
+  // The layers panel is virtualized: a collapsed node's children don't
+  // exist in the DOM until it's expanded, and the expand caret only
+  // becomes visible/clickable after hovering over the row (confirmed by
+  // running against a real session). There's no data-node-id or explicit
+  // hierarchy in the markup: the only signal that a row "is a direct
+  // child" is that it sits immediately below the parent, in visual order
+  // (the wrapper's Y position), with an indentation level exactly one
+  // greater than the parent's. It stops at the first row whose
+  // indentation is less than or equal to the parent's.
   private async expandAndListChildren(page: Page, nodeId: string): Promise<string[]> {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     await row.hover();

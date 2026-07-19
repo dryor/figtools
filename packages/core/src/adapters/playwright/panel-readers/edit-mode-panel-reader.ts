@@ -3,17 +3,17 @@ import type { CommonStyles, FigmaColor, FigmaPaint, TypographyStyles } from "../
 import type { PanelReader } from "./panel-reader";
 import { LayerRowPanelReader } from "./layer-row-panel-reader";
 
-// Medido contra una sesión real: el panel de propiedades ya está resuelto
-// ~3ms después del click. 500ms deja margen amplio sin acumular varios
-// segundos de espera por cada campo ausente en un árbol grande.
+// Measured against a real session: the properties panel is already
+// settled ~3ms after the click. 500ms leaves wide margin without piling
+// up several seconds of waiting per missing field on a large tree.
 const FIELD_TIMEOUT_MS = 500;
 
-// Selectores confirmados corriendo contra una sesión real de figma.com. Las
-// filas del layers panel tienen el nodeId como PREFIJO del testid
-// ("{nodeId}-layers-panel-row"), y los campos de posición/tamaño son inputs
-// cuyo valor vive en el atributo `value`, no en textContent. Solo se
-// confirmaron los tipos Group/Frame/Instance/Auto layout — otros tipos de
-// nodo (Text, Rectangle, Vector...) no se probaron.
+// Selectors confirmed by running against a real figma.com session. Layers
+// panel rows have the nodeId as a PREFIX of the testid
+// ("{nodeId}-layers-panel-row"), and position/size fields are inputs whose
+// value lives in the `value` attribute, not in textContent. Only the
+// Group/Frame/Instance/Auto layout types were confirmed — other node types
+// (Text, Rectangle, Vector...) weren't tested.
 const SELECTORS = {
   positionX: 'input[aria-label="X-position"]',
   positionY: 'input[aria-label="Y-position"]',
@@ -21,11 +21,10 @@ const SELECTORS = {
   height: '[data-testid="transform-height"]',
   opacity: '[data-testid="layer-opacity-input"]',
   cornerRadius: '[data-testid="transform-corner-radius"]',
-  // Fill, Stroke y Typography usan el mismo componente colapsado
-  // (consumed-style-panel) cuando el nodo tiene un estilo con nombre
-  // aplicado — se distinguen por el texto de su <h2> ("Fill"/"Stroke"/
-  // "Typography"). El color real está en el SVG del ícono de estilo, no
-  // como texto.
+  // Fill, Stroke, and Typography use the same collapsed component
+  // (consumed-style-panel) when the node has a named style applied —
+  // they're told apart by their <h2> text ("Fill"/"Stroke"/"Typography").
+  // The actual color lives in the style icon's SVG, not as text.
   consumedStylePanel: '[data-testid="consumed-style-panel"]',
   styleName: '[class*="textStyleTitleName"]',
   styleTag: '[class*="styleTag"]',
@@ -45,13 +44,13 @@ export class EditModePanelReader extends LayerRowPanelReader implements PanelRea
     return { width, height };
   }
 
-  // opacity y corner-radius son inputs directos; fill/stroke/typography
-  // viven como secciones "consumed-style-panel" (solo aparecen cuando el
-  // nodo tiene un estilo con nombre aplicado — sin eso, la sección no
-  // existe en el DOM y queda sin leer). Confirmado corriendo contra una
-  // sesión real: la UI de Figma no expone fontFamily/fontWeight como campos
-  // separados para un texto con estilo aplicado, solo el nombre del estilo
-  // y tamaño/line-height combinados.
+  // opacity and corner-radius are direct inputs; fill/stroke/typography
+  // live as "consumed-style-panel" sections (they only appear when the
+  // node has a named style applied — without that, the section doesn't
+  // exist in the DOM and is left unread). Confirmed by running against a
+  // real session: Figma's UI doesn't expose fontFamily/fontWeight as
+  // separate fields for a text with a style applied, only the style's
+  // name and a combined size/line-height.
   async readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }> {
     const styles: CommonStyles & { typography?: TypographyStyles } = {};
 
@@ -73,11 +72,11 @@ export class EditModePanelReader extends LayerRowPanelReader implements PanelRea
     return styles;
   }
 
-  // Ni todos los campos (X/Y/width/height) existen para todo tipo de nodo,
-  // ni el panel se re-renderiza de forma perfectamente sincrónica tras el
-  // click — por eso la espera corta antes de decidir que el campo no está,
-  // en vez de un count() inmediato que podría dar un falso negativo por una
-  // carrera de timing.
+  // Not every field (X/Y/width/height) exists for every node type, and the
+  // panel doesn't re-render perfectly synchronously after the click —
+  // that's why there's a short wait before deciding a field is absent,
+  // instead of an immediate count() that could give a false negative from
+  // a timing race.
   private async readDimension(panel: Locator, selector: string): Promise<number | null> {
     const input = panel.locator(selector);
     try {
@@ -97,8 +96,8 @@ export class EditModePanelReader extends LayerRowPanelReader implements PanelRea
     return attribute ? locator.first().getAttribute(attribute) : locator.first().textContent();
   }
 
-  // consumed-style-panel se repite una vez por sección (Fill, Stroke,
-  // Typography); se identifica por el texto de su <h2>.
+  // consumed-style-panel repeats once per section (Fill, Stroke,
+  // Typography); it's identified by its <h2> text.
   private async findConsumedStyleSection(panel: Locator, sectionTitle: string): Promise<Locator | null> {
     const sections = panel.locator(SELECTORS.consumedStylePanel);
     const count = await sections.count();
@@ -127,7 +126,7 @@ export class EditModePanelReader extends LayerRowPanelReader implements PanelRea
     if (!section) return null;
 
     const styleName = await this.readTextOrNull(section.locator(SELECTORS.styleName));
-    // El tag combina tamaño de fuente y line-height como " · 8/12".
+    // The tag combines font size and line-height as " · 8/12".
     const styleTag = await this.readTextOrNull(section.locator(SELECTORS.styleTag));
     const match = styleTag?.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
 

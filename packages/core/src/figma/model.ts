@@ -6,9 +6,9 @@ export interface FigmaColor {
 }
 
 export interface FigmaPaint {
-  // Nombre del estilo de color aplicado (ej. "Grayscale/Medium"), cuando el
-  // archivo usa un estilo con nombre en vez de un color suelto. null si es
-  // un color directo sin estilo.
+  // Name of the applied color style (e.g. "Grayscale/Medium"), when the
+  // file uses a named style instead of a loose color. null if it's a
+  // direct color with no style.
   styleName: string | null;
   color: FigmaColor;
 }
@@ -24,10 +24,10 @@ export interface CommonStyles {
 }
 
 export interface TypographyStyles {
-  // Nombre del estilo de texto aplicado (ej. "Body/Caption"), cuando el
-  // archivo usa un estilo con nombre. La UI de Figma no expone fontFamily ni
-  // fontWeight como campos separados para un texto con estilo aplicado —
-  // solo el nombre del estilo y el tamaño/line-height combinados.
+  // Name of the applied text style (e.g. "Body/Caption"), when the file
+  // uses a named style. Figma's UI doesn't expose fontFamily or
+  // fontWeight as separate fields for a text with a style applied — only
+  // the style's name and a combined size/line-height.
   styleName: string | null;
   fontFamily: string | null;
   fontWeight: number | null;
@@ -45,14 +45,14 @@ export interface FigmaNode {
   id: string;
   name: string;
   type: string;
-  // null cuando el campo no existe para este tipo de nodo/estado (ej. un
-  // input de tamaño que no se renderiza en auto-layout "Fill"/"Hug"), a
-  // diferencia de un valor real de 0.
+  // null when the field doesn't exist for this node type/state (e.g. a
+  // size input that doesn't render in auto-layout "Fill"/"Hug"), as
+  // opposed to a real value of 0.
   position: { x: number | null; y: number | null };
   size: { width: number | null; height: number | null };
-  // false si la capa está oculta en Figma (ícono de visibilidad apagado).
-  // El nodo se sigue incluyendo en el árbol igual — el consumidor decide si
-  // lo filtra.
+  // false if the layer is hidden in Figma (visibility icon off). The node
+  // is still included in the tree either way — the consumer decides
+  // whether to filter it out.
   visible: boolean;
   styles: CommonStyles & { typography?: TypographyStyles };
   image: File | null;

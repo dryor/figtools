@@ -1,130 +1,131 @@
 # ADR-panel-reader-bridge
 
-## Contexto
+## Context
 
-`PlaywrightFigmaGateway` (definido en [`ADR-figtools-core`](./ADR-figtools-core.md))
-lee los datos de un nodo scrapeando el DOM del panel de propiedades de
-Figma. Se confirmó corriendo contra sesiones reales que **el DOM de ese
-panel cambia por completo según el modo en que Figma renderiza el archivo**,
-no solo según el tipo de nodo seleccionado:
+`PlaywrightFigmaGateway` (defined in [`ADR-figtools-core`](./ADR-figtools-core.md))
+reads a node's data by scraping the DOM of Figma's properties panel. It was
+confirmed by running against real sessions that **the DOM of that panel
+changes completely depending on the mode Figma renders the file in**, not
+just depending on the type of node selected:
 
-- **Modo edición** (usuario con permiso de editor): panel con inputs
-  editables (`x-y-inputs-row`, `transform-width`, `consumed-style-panel`
-  para fill/stroke/typography). No expone `fontFamily` ni `fontWeight` como
-  campos separados — clickear el nombre de un estilo tipográfico abre un
-  selector de estilos del archivo, no un detalle de sus valores.
-- **Modo inspección** (usuario viewer en un archivo cuya organización tiene
-  el plan que lo habilita): panel de solo lectura con pares
-  `inspectionPropertyRow` uniformes (`Width`, `Height`, `Font`, `Weight`,
-  `Style`, `Size`, `Line height`, `Letter spacing`, `Case`, color en hex
-  directo). Cubre datos que el modo edición no expone.
-- **Dev Mode pagado** (`&m=dev`): en el plan actual del usuario, entrar a un
-  archivo propio con ese parámetro dispara un modal de upgrade en vez de
-  mostrar el panel — no se pudo confirmar su DOM. Se documenta como modo
-  esperable a futuro, no implementado.
+- **Edit mode** (user with editor permission): panel with editable inputs
+  (`x-y-inputs-row`, `transform-width`, `consumed-style-panel` for
+  fill/stroke/typography). It doesn't expose `fontFamily` or `fontWeight`
+  as separate fields — clicking a typography style's name opens the
+  file's style picker, not a detail of its values.
+- **Inspection mode** (viewer user on a file whose organization has the
+  plan that enables it): read-only panel with uniform
+  `inspectionPropertyRow` pairs (`Width`, `Height`, `Font`, `Weight`,
+  `Style`, `Size`, `Line height`, `Letter spacing`, `Case`, color as
+  direct hex). Covers data that edit mode doesn't expose.
+- **Paid Dev Mode** (`&m=dev`): on the current user's plan, entering an
+  owned file with that parameter triggers an upgrade modal instead of
+  showing the panel — its DOM couldn't be confirmed. Documented as an
+  expected future mode, not implemented.
 
-Cuál de estos modos ve un usuario dado no depende únicamente de su rol en el
-archivo: en la misma sesión, un archivo propio (editor) mostró el modal de
-upgrade al forzar `&m=dev`, mientras que un archivo ajeno de solo view
-mostró el panel de inspección sin pedir upgrade — depende del plan de la
-organización dueña del archivo, algo que el gateway no controla ni puede
-forzar de forma confiable vía URL.
+Which of these modes a given user sees doesn't depend only on their role on
+the file: in the same session, an owned file (editor) showed the upgrade
+modal when forcing `&m=dev`, while a view-only file belonging to someone
+else showed the inspection panel with no upgrade prompt — it depends on the
+plan of the organization that owns the file, something the gateway doesn't
+control and can't reliably force via URL.
 
-[`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec)
-ya define un tercer escenario, todavía sin un archivo real que lo confirme:
-un usuario con permiso de solo view en un archivo cuya organización no
-habilita el panel de inspección. Nadie sabe hoy qué muestra Figma en ese
-caso — puede no haber ningún panel legible con datos del nodo — así que el
-spec pide un error explícito (`INCOMPLETE_NODE_DATA`) en vez de asumir un
-resultado parcial sin poder validarlo.
+[`specs/get_figma_information.spec`](../specs/get_figma_information.spec)
+already defines a third scenario, still without a real file to confirm it:
+a user with view-only permission on a file whose organization doesn't
+enable the inspection panel. No one knows today what Figma shows in that
+case — there may be no readable panel with the node's data at all — so the
+spec calls for an explicit error (`INCOMPLETE_NODE_DATA`) instead of
+assuming a partial result that can't be validated.
 
-## Decisión
+## Decision
 
-- **Patrón — Bridge.** Se separa la abstracción de alto nivel (`readNode`,
-  que arma un `RawFigmaNode` con la forma estable que espera el core) de la
-  implementación concreta de cómo leer cada campo del DOM (`PanelReader`,
-  intercambiable según el modo detectado). `readNode` no cambia según el
-  modo; solo delega cada lectura (`readPosition`, `readSize`, `readStyles`,
-  `readType`) al `PanelReader` activo. Se prefirió sobre "un método completo
-  por modo con un if/switch" porque ese enfoque duplicaría la lógica de
-  armado del `RawFigmaNode` (recorrido de hijos, manejo de `visible`, id,
-  name) en cada rama, cuando esa parte es idéntica entre modos — solo el
-  cómo leer cada campo cambia.
+- **Pattern — Bridge.** The high-level abstraction (`readNode`, which
+  builds a `RawFigmaNode` with the stable shape the core expects) is
+  separated from the concrete implementation of how to read each field
+  from the DOM (`PanelReader`, swappable depending on the detected mode).
+  `readNode` doesn't change per mode; it only delegates each read
+  (`readPosition`, `readSize`, `readStyles`, `readType`) to the active
+  `PanelReader`. This was chosen over "one full method per mode with an
+  if/switch" because that approach would duplicate the `RawFigmaNode`
+  assembly logic (walking children, handling `visible`, id, name) in each
+  branch, when that part is identical across modes — only how each field
+  is read changes.
 
-- **Detección de modo, no selección forzada.** El gateway navega a la URL
-  del nodo tal cual (sin agregar `&m=dev` ni ningún parámetro), y detecta
-  qué panel quedó presente en el DOM (`properties-inspection-panel` existe →
-  modo inspección; si no, asume modo edición). No fuerza ningún modo porque
-  no hay forma confiable de garantizar que un modo forzado esté disponible
-  (ver Contexto: el mismo usuario vio comportamientos distintos en dos
-  archivos).
+- **Mode detection, not forced selection.** The gateway navigates to the
+  node's URL as-is (without adding `&m=dev` or any parameter), and detects
+  which panel ended up present in the DOM (`properties-inspection-panel`
+  exists → inspection mode; otherwise, assumes edit mode). It doesn't force
+  any mode because there's no reliable way to guarantee a forced mode is
+  available (see Context: the same user saw different behavior on two
+  files).
 
-- **`PanelReader` es la unidad de extensión para modos futuros.** Sumar Dev
-  Mode pagado (cuando se pueda confirmar su DOM) es agregar un
-  `DevModePanelReader` nuevo y una rama más en la detección de modo — no
-  toca `readNode` ni los otros `PanelReader`.
+- **`PanelReader` is the extension unit for future modes.** Adding paid Dev
+  Mode (once its DOM can be confirmed) means adding a new
+  `DevModePanelReader` and one more branch in mode detection — it doesn't
+  touch `readNode` or the other `PanelReader`s.
 
-- **Modo `"none"` corta antes de `readNode`, no entra al `PanelReader`.**
-  Cuando `detectPanelMode` no encuentra ni el panel de edición ni el de
-  inspección, `fetchNode` devuelve directamente el status que el core mapea
-  a `INCOMPLETE_NODE_DATA` (ver `ADR-figtools-core`), sin instanciar
-  ningún `PanelReader` ni llamar a `readNode`. Alternativa descartada: un
-  `NullPanelReader` cuyos métodos devuelven siempre vacío, dejando que
-  `readNode` corra igual — significaría gastar el recorrido completo del
-  árbol (potencialmente varios minutos en un archivo grande, ver duración
-  medida en `ADR-figtools-core`) para un resultado que de entrada se
-  sabe va a ser un error.
+- **`"none"` mode short-circuits before `readNode`, it never reaches a
+  `PanelReader`.** When `detectPanelMode` finds neither the edit panel nor
+  the inspection panel, `fetchNode` directly returns the status the core
+  maps to `INCOMPLETE_NODE_DATA` (see `ADR-figtools-core`), without
+  instantiating any `PanelReader` or calling `readNode`. Discarded
+  alternative: a `NullPanelReader` whose methods always return empty,
+  letting `readNode` run anyway — that would mean spending the full tree
+  traversal (potentially several minutes on a large file, see the measured
+  duration in `ADR-figtools-core`) on a result that's already known
+  upfront to be an error.
 
-- **Organización — carpeta dedicada.** `panel-readers/` dentro de
-  `src/adapters/playwright/`, con un archivo por modo más la interfaz
-  común. Separa claramente "selectores DOM por modo" (volátil, cambia si
-  Figma rediseña un panel puntual) del resto del gateway (`readNode`,
-  recorrido de hijos, síntesis del nodo CANVAS), que no depende de qué modo
-  esté activo.
+- **Organization — dedicated folder.** `panel-readers/` inside
+  `src/adapters/playwright/`, with one file per mode plus the shared
+  interface. Cleanly separates "DOM selectors per mode" (volatile, changes
+  if Figma redesigns a specific panel) from the rest of the gateway
+  (`readNode`, walking children, synthesizing the CANVAS node), which
+  doesn't depend on which mode is active.
 
-- **Volatilidad:**
-  - **Volátil:** los selectores DOM de cada modo — ya se vio inestabilidad
-    real en el modo edición (tipos de nodo sin cobertura completa,
-    fill/stroke solo confirmados cuando el nodo tiene un estilo con nombre
-    aplicado). Vive encapsulado dentro de cada `PanelReader`.
-  - **Estable:** la forma de `RawFigmaNode` y el recorrido del árbol
-    (`readNode`, `expandAndListChildren`, síntesis del nodo CANVAS) — no
-    cambia entre modos, ya está probado contra sesiones reales.
+- **Volatility:**
+  - **Volatile:** each mode's DOM selectors — real instability has already
+    been seen in edit mode (node types without full coverage, fill/stroke
+    only confirmed when the node has a named style applied). Lives
+    encapsulated inside each `PanelReader`.
+  - **Stable:** the shape of `RawFigmaNode` and the tree traversal
+    (`readNode`, `expandAndListChildren`, synthesizing the CANVAS node) —
+    doesn't change across modes, already tested against real sessions.
 
-- **`FigmaFetchResult` gana un status nuevo.** `ADR-figtools-core`
-  define `FigmaFetchResult<T>` con `"ok" | "not-found-or-no-access" |
-  "session-expired"` — ninguno cubre "el nodo existe pero no hay panel
-  legible". Se agrega `"incomplete-node-data"`, que el core mapea al código
-  de error `INCOMPLETE_NODE_DATA` ya declarado en ese mismo ADR. A
-  diferencia del resto de las decisiones de este documento, esta sí toca el
-  contrato del puerto `FigmaGateway`, no solo la implementación interna de
-  `PlaywrightFigmaGateway`.
+- **`FigmaFetchResult` gains a new status.** `ADR-figtools-core` defines
+  `FigmaFetchResult<T>` with `"ok" | "not-found-or-no-access" |
+  "session-expired"` — none of them cover "the node exists but there's no
+  readable panel". `"incomplete-node-data"` is added, which the core maps
+  to the `INCOMPLETE_NODE_DATA` error code already declared in that same
+  ADR. Unlike the rest of this document's decisions, this one does touch
+  the `FigmaGateway` port's contract, not just `PlaywrightFigmaGateway`'s
+  internal implementation.
 
-- **Relaciones:**
+- **Relationships:**
   - `RELATED_TO` [`ADR-figtools-core`](./ADR-figtools-core.md) —
-    extiende la implementación interna de `PlaywrightFigmaGateway`; agrega
-    un status a `FigmaFetchResult`, el único punto donde este documento
-    toca el contrato del puerto que ese ADR ya define.
-  - `DERIVES_FROM` [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec)
+    extends `PlaywrightFigmaGateway`'s internal implementation; adds a
+    status to `FigmaFetchResult`, the only point where this document
+    touches the port contract that ADR already defines.
+  - `DERIVES_FROM` [`specs/get_figma_information.spec`](../specs/get_figma_information.spec)
 
 ## Interfaces
 
-### Diagrama (mermaid)
+### Diagram (mermaid)
 
 ```mermaid
 flowchart TD
     Fetch[PlaywrightFigmaGateway.fetchNode] --> Detect[detectPanelMode]
-    Detect -->|panel de edición presente| Edit[EditModePanelReader]
-    Detect -->|properties-inspection-panel presente| Inspection[InspectionPanelReader]
-    Detect -->|ninguno de los dos| None[["status: incomplete-node-data"]]
+    Detect -->|edit panel present| Edit[EditModePanelReader]
+    Detect -->|properties-inspection-panel present| Inspection[InspectionPanelReader]
+    Detect -->|neither one| None[["status: incomplete-node-data"]]
 
     Edit --> ReadNode[readNode]
     Inspection --> ReadNode
-    None -.corta antes de.-> ReadNode
+    None -.short-circuits before.-> ReadNode
 
-    ReadNode -->|delega lecturas a| Reader[["PanelReader (interfaz)"]]
-    Inspection -.implementa.-> Reader
-    Edit -.implementa.-> Reader
+    ReadNode -->|delegates reads to| Reader[["PanelReader (interface)"]]
+    Inspection -.implements.-> Reader
+    Edit -.implements.-> Reader
 
     Reader --> ReadName[readName]
     Reader --> ReadType[readType]
@@ -140,8 +141,8 @@ flowchart TD
 import type { Locator, Page } from "playwright";
 import type { CommonStyles, TypographyStyles } from "../../../figma/model";
 
-// Cada método recibe la fila del layers panel y/o el panel de propiedades
-// ya seleccionados; el PanelReader no navega ni hace click, solo lee.
+// Each method receives the already-selected layers panel row and/or
+// properties panel; the PanelReader doesn't navigate or click, it only reads.
 export interface PanelReader {
   readName(row: Locator): Promise<string>;
   readType(row: Locator): Promise<string>;
@@ -151,23 +152,23 @@ export interface PanelReader {
   readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }>;
 }
 
-// "none": ni el panel de edición ni el de inspección quedaron presentes en
-// el DOM tras cargar la página — no hay ningún PanelReader para ese caso.
+// "none": neither the edit panel nor the inspection panel ended up present
+// in the DOM after loading the page — there's no PanelReader for that case.
 export type PanelMode = "edit" | "inspection" | "none";
 
-// Corre una sola vez por página cargada (no por nodo): el modo no cambia
-// entre nodos de un mismo archivo en la misma sesión.
+// Runs once per loaded page (not per node): the mode doesn't change across
+// nodes of the same file within the same session.
 export function detectPanelMode(page: Page): Promise<PanelMode>;
 
-// No se llama con mode "none" — ver fetchNode en el Usage example: ese caso
-// corta antes de necesitar un PanelReader.
+// Never called with mode "none" — see fetchNode in the Usage example: that
+// case short-circuits before needing a PanelReader.
 export function createPanelReader(mode: "edit" | "inspection"): PanelReader;
 ```
 
 ### Usage example
 
 ```typescript
-// dentro de PlaywrightFigmaGateway.fetchNode, una sola vez por page.goto():
+// inside PlaywrightFigmaGateway.fetchNode, once per page.goto():
 async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
   const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
   return this.withPage(session, url, async (page) => {
@@ -180,7 +181,7 @@ async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise
   });
 }
 
-// readNode ya no sabe nada de selectores concretos:
+// readNode no longer knows anything about concrete selectors:
 private async readNode(page: Page, nodeId: string, reader: PanelReader): Promise<RawFigmaNode | null> {
   const row = page.locator(SELECTORS.layerRow(nodeId));
   if ((await row.count()) === 0) return null;
@@ -205,7 +206,7 @@ private async readNode(page: Page, nodeId: string, reader: PanelReader): Promise
 }
 ```
 
-## Ver también
+## See also
 
-- [`ADR-figtools-core`](./ADR-figtools-core.md) — define `FigmaGateway` como puerto y `PlaywrightFigmaGateway` como su adapter concreto; este documento extiende la estructura interna de ese adapter.
-- [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios por nivel de acceso que motivan la existencia de más de un `PanelReader`.
+- [`ADR-figtools-core`](./ADR-figtools-core.md) — defines `FigmaGateway` as a port and `PlaywrightFigmaGateway` as its concrete adapter; this document extends that adapter's internal structure.
+- [`specs/get_figma_information.spec`](../specs/get_figma_information.spec) — access-level scenarios that motivate having more than one `PanelReader`.

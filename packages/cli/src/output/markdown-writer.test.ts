@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 describe("writeAsMarkdownTree", () => {
-  it("un nodo sin hijos se escribe como un único archivo markdown", async () => {
+  it("a node with no children is written as a single markdown file", async () => {
     const leaf = makeNode({ id: "1:1", name: "Header", children: [] });
 
     await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
@@ -59,7 +59,7 @@ describe("writeAsMarkdownTree", () => {
     expect(indexContents).toContain("Home Screen");
   });
 
-  it("cada hijo se ubica dentro de la carpeta de su nodo padre, reflejando la jerarquía", async () => {
+  it("each child is placed inside its parent node's folder, reflecting the hierarchy", async () => {
     const root: FigmaScrapeResult = makeNode({
       id: "1:1",
       name: "Home Screen",
@@ -133,7 +133,7 @@ describe("writeAsMarkdownTree", () => {
     expect(entriesB).toContain("screen-b.md");
   });
 
-  it("sobrescribe archivos existentes con el mismo nombre sin pedir confirmación", async () => {
+  it("overwrites existing files with the same name without asking for confirmation", async () => {
     const firstRun = makeNode({ id: "1:1", name: "Header", children: [] });
     await writeAsMarkdownTree("ABC123", firstRun, { outputDir: tmpDir });
 

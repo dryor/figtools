@@ -1,174 +1,177 @@
 # ADR-figtools-cli
 
-## Contexto
+## Context
 
-Se necesita un CLI (`@figtools/cli`) que envuelva `@figtools/core` para resolver
-una o varias URLs de Figma desde la línea de comandos, escribiendo el
-resultado en `json` o en un árbol de archivos `markdown` navegable pensado
-para que un LLM lo use como fuente de datos. Los criterios de aceptación de
-este comportamiento ya están definidos en
-[`specs/resolver_urls_de_figma_por_linea_de_comandos.spec`](../specs/resolver_urls_de_figma_por_linea_de_comandos.spec).
+We need a CLI (`@figtools/cli`) that wraps `@figtools/core` to resolve one
+or more Figma URLs from the command line, writing the result as `json` or
+as a navigable `markdown` file tree meant to be used by an LLM as a data
+source. The acceptance criteria for this behavior are already defined in
+[`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec).
 
-El core ya expone `resolveUrl(url)` (resuelve una URL, dispara login
-automático la primera vez que no hay sesión) y `reauthenticate()` (fuerza un
-login nuevo sin importar si la sesión actual sigue siendo válida). Ninguno de
-los dos alcanza para "asegurar que hay sesión, sin forzar un login si ya
-existe una válida" — un comportamiento que el CLI necesita para no disparar
-varios logins interactivos superpuestos cuando procesa varias URLs de forma
-concurrente sin sesión guardada. Node.js es single-threaded: varias
-`resolveUrl()` corriendo "en simultáneo" no ejecutan en paralelo real (no hay
-múltiples hilos), sino que se intercalan cooperativamente en el mismo hilo
-vía el event loop cada vez que una hace `await` en una operación de I/O. Aun
-así, el riesgo de login duplicado es real: si ninguna URL tiene sesión
-guardada, cada una podría llegar a "no hay sesión, disparo login" antes de
-que la primera termine el suyo, abriendo varios navegadores headed a la vez.
+The core already exposes `resolveUrl(url)` (resolves a URL, triggers
+automatic login the first time there's no session) and `reauthenticate()`
+(forces a new login regardless of whether the current session is still
+valid). Neither of the two is enough for "make sure there's a session,
+without forcing a login if a valid one already exists" — a behavior the CLI
+needs so it doesn't trigger several overlapping interactive logins when it
+processes several URLs concurrently with no saved session. Node.js is
+single-threaded: several `resolveUrl()` calls running "at the same time"
+don't execute in real parallel (there's no multiple threads), they
+cooperatively interleave on the same thread via the event loop each time one
+of them `await`s an I/O operation. Even so, the risk of a duplicate login is
+real: if no URL has a saved session, each one could reach "no session,
+trigger login" before the first one finishes its own, opening several
+headed browsers at once.
 
-## Decisión
+## Decision
 
-- **Formato de salida — dos funciones, sin interfaz formal.** `writeAsJson(result, dest)`
-  y `writeAsMarkdownTree(result, dest)` son funciones independientes; el CLI
-  elige cuál llamar con un simple `switch`/mapa de `--format` a la función
-  correcta. No se define una interfaz `OutputWriter` ni un Strategy formal
-  porque las dos variantes casi no comparten complejidad interna real: `json`
-  es serialización directa de `FigmaScrapeResult`; `markdown` es un recorrido
-  recursivo del árbol de nodos con cálculo de slugs, resolución de colisiones
-  entre hermanos, y decisión de archivo-vs-carpeta por nodo. Una interfaz
-  común que no oculta ningún comportamiento compartido real es indirección
-  sin beneficio (concepto de "shallow module" de *A Philosophy of Software
-  Design*, cap. 4; y la advertencia de *Functional Design and Architecture*,
-  cap. 2 y 14, contra generalizar antes de que exista una necesidad real,
-  usando el Expression Problem como ejemplo de abstracción prematura sin
-  beneficio concreto a la vista). Si en el futuro aparece un tercer formato
-  con la misma forma interna que uno de los dos existentes, ahí sí se
-  factoriza lo común real — no antes.
+- **Output format — two functions, no formal interface.** `writeAsJson(result, dest)`
+  and `writeAsMarkdownTree(result, dest)` are independent functions; the CLI
+  chooses which one to call with a simple `switch`/map from `--format` to
+  the right function. No `OutputWriter` interface or formal Strategy is
+  defined because the two variants barely share any real internal
+  complexity: `json` is direct serialization of `FigmaScrapeResult`;
+  `markdown` is a recursive traversal of the node tree with slug
+  computation, sibling collision resolution, and per-node
+  file-vs-folder decisions. A common interface that doesn't hide any real
+  shared behavior is indirection with no benefit (the "shallow module"
+  concept from *A Philosophy of Software Design*, ch. 4; and the warning
+  from *Functional Design and Architecture*, ch. 2 and 14, against
+  generalizing before a real need exists, using the Expression Problem as
+  an example of premature abstraction with no concrete benefit in sight).
+  If a third format appears in the future with the same internal shape as
+  one of the two existing ones, that's when the real common part gets
+  factored out — not before.
 
-- **El writer de markdown separa nombrado de escritura a disco.**
-  `slugifyWithCollisions(names: string[]): string[]` es una función pura,
-  testeable con arrays de strings sin tocar el filesystem. `writeAsMarkdownTree`
-  recorre el árbol de nodos y llama a esa función para nombrar cada nivel de
-  hijos, y hace el I/O (`mkdir`, `writeFile`). Dos piezas de conocimiento
-  distintas (cómo se nombra un nodo vs. cómo se escribe a disco) viven en
-  dos lugares distintos — la primera no se filtra a la segunda, siguiendo
-  information hiding (*A Philosophy of Software Design*, cap. 5): cada pieza
-  de conocimiento (aquí, "cómo resolver colisiones de nombre" y "cómo volcar
-  un árbol a directorios") debe encapsularse en un solo lugar para no crear
-  una dependencia oculta entre ambas si una cambia.
+- **The markdown writer separates naming from writing to disk.**
+  `slugifyWithCollisions(names: string[]): string[]` is a pure function,
+  testable with arrays of strings without touching the filesystem.
+  `writeAsMarkdownTree` walks the node tree and calls that function to name
+  each level of children, and does the I/O (`mkdir`, `writeFile`). Two
+  distinct pieces of knowledge (how a node is named vs. how it's written to
+  disk) live in two separate places — the first doesn't leak into the
+  second, following information hiding (*A Philosophy of Software Design*,
+  ch. 5): each piece of knowledge (here, "how to resolve name collisions"
+  and "how to dump a tree to directories") should be encapsulated in a
+  single place so a change to one doesn't create a hidden dependency on the
+  other.
 
-- **Resolución de URLs — concurrente, con una sesión asegurada antes de arrancar.**
-  El CLI llama a `ensureSession()` (ver punto siguiente) una única vez antes
-  de lanzar la resolución de las N URLs con `Promise.allSettled`. Esto es
-  concurrencia cooperativa de un solo hilo (event loop de Node.js
-  intercalando las esperas de I/O de cada `resolveUrl()`), no paralelismo con
-  múltiples hilos — la distinción importa porque cambia qué se puede asumir
-  sobre el orden de ejecución: nada corre "al mismo tiempo" en sentido
-  estricto, pero tampoco hay un orden secuencial garantizado entre las N
-  URLs. Una vez que hay sesión garantizada, las N resoluciones concurrentes
-  no arriesgan login duplicado, porque ninguna de ellas necesita autenticar
-  de nuevo. Sin esta sesión asegurada de antemano, lanzar las N
-  `resolveUrl()` sin sesión guardada podría disparar varios logins
-  interactivos superpuestos (varios navegadores headed abriéndose antes de
-  que el primer login termine) — comportamiento que ni el ADR del core ni el
-  usuario esperan.
+- **URL resolution — concurrent, with a session secured before starting.**
+  The CLI calls `ensureSession()` (see next point) exactly once before
+  launching resolution of the N URLs with `Promise.allSettled`. This is
+  single-threaded cooperative concurrency (Node.js's event loop
+  interleaving each `resolveUrl()`'s I/O waits), not multi-threaded
+  parallelism — the distinction matters because it changes what can be
+  assumed about execution order: nothing runs "at the same time" in the
+  strict sense, but there's also no guaranteed sequential order between the
+  N URLs. Once a session is guaranteed, the N concurrent resolutions don't
+  risk a duplicate login, because none of them needs to authenticate again.
+  Without this session secured upfront, launching the N `resolveUrl()`
+  calls with no saved session could trigger several overlapping interactive
+  logins (several headed browsers opening before the first login finishes)
+  — behavior neither the core's ADR nor the user expects.
 
-- **Se amplía el contrato público de `@figtools/core` con `ensureSession()`.**
-  `FigmaScraperCore` gana un tercer método público:
-  `ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>`. Dispara
-  el login interactivo solo si no hay sesión guardada (a diferencia de
-  `reauthenticate()`, que siempre fuerza un login nuevo sin importar el
-  estado de la sesión actual). Es funcionalidad que pertenece al contrato del
-  servicio, no un hack del lado del consumidor — el propio core ya tiene esta
-  lógica implementada como la función privada `ensureSession` dentro de
-  `createFigmaScraperCore`, solo hace falta exponerla. *Functional Design and
-  Architecture* (cap. 13.2, comparación de patrones de Dependency Inversion)
-  compara Service Handle contra Free monad/ReaderT/GADT/Final-Tagless para
-  el mismo tipo de problema (inyectar o exponer una capacidad de un
-  servicio), y concluye que Service Handle es la opción más simple y con
-  menos código de infraestructura cuando alcanza — aquí alcanza: es agregar
-  un método más al mismo Service Handle que ya es `FigmaScraperCore`, sin
-  necesidad de una abstracción nueva.
+- **`@figtools/core`'s public contract is extended with `ensureSession()`.**
+  `FigmaScraperCore` gains a third public method:
+  `ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>`. It
+  triggers the interactive login only if there's no saved session (unlike
+  `reauthenticate()`, which always forces a new login regardless of the
+  current session's state). This is functionality that belongs to the
+  service's contract, not a hack on the consumer's side — the core itself
+  already has this logic implemented as the private `ensureSession`
+  function inside `createFigmaScraperCore`, it just needs to be exposed.
+  *Functional Design and Architecture* (ch. 13.2, comparison of Dependency
+  Inversion patterns) compares Service Handle against Free
+  monad/ReaderT/GADT/Final-Tagless for the same kind of problem (injecting
+  or exposing a service's capability), and concludes Service Handle is the
+  simplest option with the least infrastructure code when it's enough —
+  here it's enough: it's adding one more method to the same Service Handle
+  that `FigmaScraperCore` already is, with no need for a new abstraction.
 
-- **Orquestación multi-URL — secuencial en la sesión, concurrente en la resolución.**
-  Paso 1: `ensureSession()` una vez (secuencial, bloqueante, se espera con
-  `await` antes de seguir). Paso 2: las N llamadas a `resolveUrl(url)` se
-  lanzan juntas y se esperan con `Promise.allSettled`, cada una independiente
-  — el fallo de una no cancela ni bloquea a las demás (ya requerido por el
-  spec). Sigue el mismo principio del patrón de *Functional Design and
-  Architecture* cap. 9 (asegurar el recurso compartido antes de arrancar el
-  trabajo concurrente) sin necesitar STM ni primitivas de concurrencia
-  explícitas: en Node.js/TypeScript, con un solo hilo de por medio, asegurar
-  la sesión antes del `Promise.allSettled` ya es suficiente porque no hay
-  memoria compartida mutable entre las N resoluciones más allá de la sesión
-  ya persistida en disco por `CookieSessionStore`.
+- **Multi-URL orchestration — sequential for the session, concurrent for
+  resolution.** Step 1: `ensureSession()` once (sequential, blocking,
+  awaited before continuing). Step 2: the N calls to `resolveUrl(url)` are
+  launched together and awaited with `Promise.allSettled`, each one
+  independent — one failing doesn't cancel or block the others (already
+  required by the spec). This follows the same principle as the pattern in
+  *Functional Design and Architecture* ch. 9 (securing the shared resource
+  before starting concurrent work) without needing STM or explicit
+  concurrency primitives: in Node.js/TypeScript, with only one thread
+  involved, securing the session before `Promise.allSettled` is already
+  enough because there's no shared mutable memory between the N
+  resolutions beyond the session already persisted to disk by
+  `CookieSessionStore`.
 
-- **Si `ensureSession()` falla, se aborta sin intentar ninguna URL.** El
-  spec original no cubre este caso (solo describe el fallo de una URL
-  individual durante la resolución, no un fallo de la sesión compartida
-  antes de arrancar). Si no se puede garantizar una sesión válida, todas las
-  URLs fallarían de la misma forma, así que `resolveAll` no llama a
-  `resolveUrl` para ninguna: devuelve las N URLs marcadas con el error de
-  sesión que devolvió `ensureSession()`, sin intentar la resolución
-  individual de cada una.
+- **If `ensureSession()` fails, abort without attempting any URL.** The
+  original spec doesn't cover this case (it only describes an individual
+  URL's failure during resolution, not a failure of the shared session
+  before starting). If a valid session can't be guaranteed, all URLs would
+  fail the same way, so `resolveAll` doesn't call `resolveUrl` for any of
+  them: it returns the N URLs marked with the session error `ensureSession()`
+  returned, without attempting individual resolution for each one.
 
-- **Volatilidad:**
-  - **Volátil:** el formato de salida (hoy `json`/`markdown`; el spec ya
-    define ambos como soluciones concretas, no como el requerimiento real —
-    el requerimiento real es "servir la información en la forma que el
-    consumidor necesite", ver *Righting Software* cap. 2 sobre "soluciones
-    disfrazadas de requerimientos"). Vive en `packages/cli/src/output/`,
-    fuera de la orquestación de resolución de URLs.
-  - **Estable:** el contrato de `@figtools/core` (`resolveUrl`,
-    `reauthenticate`, `ensureSession`) y el modelo de datos
-    (`FigmaScrapeResult`, `FigmaNode`, `FigmaPage`) que el CLI consume sin
-    conocer cómo se obtienen.
+- **Volatility:**
+  - **Volatile:** the output format (today `json`/`markdown`; the spec
+    already defines both as concrete solutions, not as the real
+    requirement — the real requirement is "serve the information in the
+    shape the consumer needs", see *Righting Software* ch. 2 on "solutions
+    disguised as requirements"). Lives in `packages/cli/src/output/`,
+    outside the URL resolution orchestration.
+  - **Stable:** `@figtools/core`'s contract (`resolveUrl`,
+    `reauthenticate`, `ensureSession`) and the data model
+    (`FigmaScrapeResult`, `FigmaNode`, `FigmaPage`) the CLI consumes
+    without knowing how it's obtained.
 
-- **Organización — por capa dentro del paquete, no por feature.** `src/cli.ts`
-  (parseo de argumentos y orquestación), `src/output/json-writer.ts`,
-  `src/output/markdown-writer.ts`, `src/output/slugify.ts` — organización por
-  responsabilidad técnica (parseo, orquestación, escritura), consistente con
-  que hoy solo hay un flujo de negocio ("resolver URLs de Figma"), no
-  múltiples features que ameriten carpetas por dominio.
+- **Organization — by layer within the package, not by feature.** `src/cli.ts`
+  (argument parsing and orchestration), `src/output/json-writer.ts`,
+  `src/output/markdown-writer.ts`, `src/output/slugify.ts` — organized by
+  technical responsibility (parsing, orchestration, writing), consistent
+  with the fact that today there's only one business flow ("resolve Figma
+  URLs"), not multiple features that would warrant folders by domain.
 
-- **Parseo de argumentos y decisión de destino — funciones puras, separadas del entrypoint.**
-  `cli.ts` no debe acoplar el parseo a `process.argv`/`process.exit`
-  directamente, porque eso impide testear el parseo sin ejecutar el proceso
-  real. Se extraen dos funciones puras:
-  - `parseArgs(argv: string[])`: recibe los argumentos ya recortados (sin
-    `node` ni la ruta del script) y devuelve la configuración parseada (URLs,
-    `format`, `outputPath`, `quiet`, o el subcomando `login`) o un error de
-    validación — nunca lee `process.argv` ni imprime nada por su cuenta.
+- **Argument parsing and destination decision — pure functions, separate
+  from the entrypoint.** `cli.ts` shouldn't couple parsing directly to
+  `process.argv`/`process.exit`, because that prevents testing the parsing
+  without running the real process. Two pure functions are extracted:
+  - `parseArgs(argv: string[])`: receives the arguments already trimmed
+    (without `node` or the script path) and returns the parsed
+    configuration (URLs, `format`, `outputPath`, `quiet`, or the `login`
+    subcommand) or a validation error — it never reads `process.argv` or
+    prints anything on its own.
   - `decideOutputTarget(outputPath: string | undefined, format: "json" | "markdown")`:
-    decide si `outputPath` se interpreta como archivo o carpeta (o si la
-    extensión no es soportada), sin tocar el filesystem.
-  `cli.ts` queda como un entrypoint delgado: llama a estas funciones, orquesta
-  `resolveAll` y los writers, e imprime/hace `process.exit` al final. Esto es
-  lo mismo que separar la lógica pura y testeable de sus efectos, ya aplicado
-  en `slugifyWithCollisions` para el writer de markdown.
+    decides whether `outputPath` is interpreted as a file or a folder (or
+    whether the extension isn't supported), without touching the
+    filesystem.
+  `cli.ts` remains a thin entrypoint: it calls these functions, orchestrates
+  `resolveAll` and the writers, and prints/calls `process.exit` at the end.
+  This is the same as separating pure, testable logic from its effects,
+  already applied in `slugifyWithCollisions` for the markdown writer.
 
-- **Relaciones:**
-  - `DERIVES_FROM` [`specs/resolver_urls_de_figma_por_linea_de_comandos.spec`](../specs/resolver_urls_de_figma_por_linea_de_comandos.spec)
+- **Relationships:**
+  - `DERIVES_FROM` [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
   - `RELATED_TO` [`packages/core/adr/ADR-figtools-core.md`](../../core/adr/ADR-figtools-core.md)
-    — este ADR amplía el contrato público de `FigmaScraperCore` definido ahí,
-    agregando `ensureSession()`.
+    — this ADR extends the public contract of `FigmaScraperCore` defined
+    there, adding `ensureSession()`.
 
 ## Interfaces
 
-### Diagrama (mermaid)
+### Diagram (mermaid)
 
 ```mermaid
 flowchart TD
-    CLI[cli.ts: parseo de argumentos] --> EnsureSession["core.ensureSession()"]
-    EnsureSession --> Resolve["Promise.allSettled(urls.map(core.resolveUrl)) — concurrente, un solo hilo"]
+    CLI[cli.ts: argument parsing] --> EnsureSession["core.ensureSession()"]
+    EnsureSession --> Resolve["Promise.allSettled(urls.map(core.resolveUrl)) — concurrent, single thread"]
 
     Resolve --> Dispatch{--format}
     Dispatch -->|json| WriteJson[writeAsJson]
     Dispatch -->|markdown| WriteMd[writeAsMarkdownTree]
 
-    WriteMd --> Slugify[["slugifyWithCollisions (función pura)"]]
+    WriteMd --> Slugify[["slugifyWithCollisions (pure function)"]]
     WriteMd --> FS[(filesystem: mkdir, writeFile)]
-    WriteJson --> Stdout[(stdout o archivo)]
+    WriteJson --> Stdout[(stdout or file)]
 
-    Resolve --> Summary[resumen de fallos a stderr]
-    Summary --> ExitCode[exit code 0 o 1]
+    Resolve --> Summary[failure summary to stderr]
+    Summary --> ExitCode[exit code 0 or 1]
 ```
 
 ### TypeScript
@@ -182,19 +185,20 @@ import type {
   Result,
 } from "@figtools/core";
 
-// Ampliación del contrato de @figtools/core (packages/core/src/figma/core.ts)
+// Extension of @figtools/core's contract (packages/core/src/figma/core.ts)
 export interface FigmaScraperCore {
   resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
 
-  // Nuevo: dispara login solo si no hay sesión guardada. A diferencia de
-  // reauthenticate(), no fuerza un login nuevo si la sesión actual es válida.
+  // New: triggers login only if there's no saved session. Unlike
+  // reauthenticate(), it doesn't force a new login if the current session
+  // is valid.
   ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
 
 // packages/cli/src/output/slugify.ts
-// Función pura: nombra cada nodo por el slug de su `name` en Figma, agregando
-// un sufijo [2], [3]... a partir del segundo hermano con el mismo nombre.
+// Pure function: names each node after the slug of its Figma `name`, adding
+// a [2], [3]... suffix starting from the second sibling with the same name.
 export function slugifyWithCollisions(names: string[]): string[];
 
 // packages/cli/src/cli.ts
@@ -210,8 +214,8 @@ export interface ParsedArgs {
 
 export type ParseArgsResult = Result<ParsedArgs, { code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION"; message: string }>;
 
-// Recibe los argumentos ya recortados (sin `node` ni la ruta del script).
-// No lee process.argv ni imprime nada — función pura.
+// Receives the arguments already trimmed (without `node` or the script path).
+// Doesn't read process.argv or print anything — pure function.
 export function parseArgs(argv: string[]): ParseArgsResult;
 
 export type OutputTarget =
@@ -220,9 +224,9 @@ export type OutputTarget =
   | { kind: "directory"; path: string }
   | { kind: "unsupported-extension"; extension: string };
 
-// Decide si outputPath se interpreta como archivo, carpeta, o extensión no
-// soportada — sin tocar el filesystem. Con format "markdown", nunca devuelve
-// "file": siempre "directory" (ver spec).
+// Decides whether outputPath is interpreted as a file, a folder, or an
+// unsupported extension — without touching the filesystem. With format
+// "markdown", it never returns "file": always "directory" (see spec).
 export function decideOutputTarget(
   outputPath: string | undefined,
   format: OutputFormat,
@@ -232,9 +236,9 @@ export function decideOutputTarget(
 export interface MarkdownWriterOptions {
   outputDir: string;
 }
-// Recorre el árbol de un FigmaScrapeResult y escribe el árbol de carpetas/archivos
-// descrito en el spec (index.md para el nodo raíz, node hoja = archivo, nodo con
-// hijos = carpeta con su propio index.md), dentro de una subcarpeta por fileKey.
+// Walks a FigmaScrapeResult's tree and writes the folder/file tree described
+// in the spec (index.md for the root node, leaf node = file, node with
+// children = folder with its own index.md), inside a subfolder per fileKey.
 export function writeAsMarkdownTree(
   fileKey: string,
   result: FigmaScrapeResult,
@@ -243,7 +247,7 @@ export function writeAsMarkdownTree(
 
 // packages/cli/src/output/json-writer.ts
 export interface JsonWriterOptions {
-  // Ausente: escribe a stdout. Presente: escribe al archivo o directorio indicado.
+  // Absent: writes to stdout. Present: writes to the given file or directory.
   outputPath?: string;
 }
 export function writeAsJson(
@@ -258,8 +262,8 @@ export interface UrlResolution {
   result: Result<FigmaScrapeResult, FigmaScraperError>;
 }
 
-// Asegura la sesión una vez, y solo después resuelve las N URLs de forma
-// concurrente (Promise.allSettled), no en paralelo real: Node.js es
+// Secures the session once, and only then resolves the N URLs
+// concurrently (Promise.allSettled), not in real parallel: Node.js is
 // single-threaded.
 export async function resolveAll(
   core: FigmaScraperCore,
@@ -281,8 +285,8 @@ const core = createFigmaScraperCore({
   gateway: new PlaywrightFigmaGateway(),
 });
 
-// resolveAll asegura la sesión una vez adentro, antes de resolver las URLs
-// de forma concurrente.
+// resolveAll secures the session once inside, before resolving the URLs
+// concurrently.
 const resolutions = await resolveAll(core, urls);
 
 let hadFailure = false;
@@ -293,7 +297,7 @@ for (const { url, result } of resolutions) {
     continue;
   }
 
-  const fileKey = parseFileKeyFrom(url); // ver ADR-figtools-core para el parseo de URL
+  const fileKey = parseFileKeyFrom(url); // see ADR-figtools-core for URL parsing
   if (format === "markdown") {
     await writeAsMarkdownTree(fileKey, result.value, { outputDir });
   } else {
@@ -304,10 +308,10 @@ for (const { url, result } of resolutions) {
 process.exit(hadFailure ? 1 : 0);
 ```
 
-## Ver también
+## See also
 
-- [`specs/resolver_urls_de_figma_por_linea_de_comandos.spec`](../specs/resolver_urls_de_figma_por_linea_de_comandos.spec)
-  — escenarios de aceptación que motivan cada decisión de este documento.
+- [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
+  — acceptance scenarios that motivate every decision in this document.
 - [`packages/core/adr/ADR-figtools-core.md`](../../core/adr/ADR-figtools-core.md)
-  — define `FigmaScraperCore` como Service Handle; este documento amplía su
-  contrato con `ensureSession()`.
+  — defines `FigmaScraperCore` as a Service Handle; this document extends
+  its contract with `ensureSession()`.

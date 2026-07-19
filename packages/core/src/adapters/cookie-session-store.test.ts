@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CookieSessionStore } from "./cookie-session-store";
 
-describe("gestionar_sesion_figma: SessionStore persiste entre instancias", () => {
+describe("manage_figma_session: SessionStore persists across instances", () => {
   let dir: string;
   let filePath: string;
 
@@ -17,12 +17,12 @@ describe("gestionar_sesion_figma: SessionStore persiste entre instancias", () =>
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("getSession devuelve null si nunca se guardó nada", async () => {
+  it("getSession returns null if nothing was ever saved", async () => {
     const store = new CookieSessionStore(filePath);
     expect(await store.getSession()).toBeNull();
   });
 
-  it("saveSession seguido de getSession devuelve la misma sesión, incluso desde otra instancia", async () => {
+  it("saveSession followed by getSession returns the same session, even from a different instance", async () => {
     const writer = new CookieSessionStore(filePath);
     await writer.saveSession({ credential: "abc123" });
 
@@ -30,7 +30,7 @@ describe("gestionar_sesion_figma: SessionStore persiste entre instancias", () =>
     expect(await reader.getSession()).toEqual({ credential: "abc123" });
   });
 
-  it("saveSession reemplaza la sesión anterior", async () => {
+  it("saveSession replaces the previous session", async () => {
     const store = new CookieSessionStore(filePath);
     await store.saveSession({ credential: "old" });
     await store.saveSession({ credential: "new" });

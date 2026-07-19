@@ -1,115 +1,118 @@
 # ADR-figtools-core
 
-## Contexto
+## Context
 
-Se necesita un core que obtenga información de Figma (nodos y archivos completos)
-sin depender de los rate limits de la REST API / MCP server de Figma en cuentas
-free. El core debe estar desacoplado de cómo se obtienen los datos (scraping vía
-headless browser, hoy con Playwright) y de la interfaz que lo consume (hoy un CLI
-y un MCP server). Los criterios de aceptación de este comportamiento ya están
-definidos en [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
-y [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec).
+We need a core that fetches Figma information (nodes and full files) without
+depending on the rate limits of Figma's REST API / MCP server on free
+accounts. The core must be decoupled from how data is obtained (scraping via
+headless browser, today with Playwright) and from the interface that
+consumes it (today a CLI and an MCP server). The acceptance criteria for
+this behavior are already defined in
+[`specs/manage_figma_session.spec`](../specs/manage_figma_session.spec)
+and [`specs/get_figma_information.spec`](../specs/get_figma_information.spec).
 
-## Decisión
+## Decision
 
 - **Stack:** TypeScript/Node.
 
-- **Patrón — desacople del mecanismo de scraping y sesión:** Ports & Adapters.
-  El core define tres puertos (`SessionStore`, `InteractiveLogin`,
-  `FigmaGateway`) y nunca importa un adapter directamente; las
-  implementaciones concretas (`CookieSessionStore`, `PlaywrightLogin`,
-  `PlaywrightFigmaGateway`) se inyectan vía `createFigmaScraperCore(deps)`.
-  Consecuencia directa de la restricción ya acordada en `/bdd`: el core no
-  debe conocer Playwright ni ningún detalle de cómo se scrapea.
+- **Pattern — decoupling the scraping and session mechanism:** Ports &
+  Adapters. The core defines three ports (`SessionStore`, `InteractiveLogin`,
+  `FigmaGateway`) and never imports an adapter directly; the concrete
+  implementations (`CookieSessionStore`, `PlaywrightLogin`,
+  `PlaywrightFigmaGateway`) are injected via `createFigmaScraperCore(deps)`.
+  Direct consequence of the constraint already agreed on in `/bdd`: the core
+  must not know about Playwright or any detail of how scraping happens.
 
-- **`PlaywrightLogin` y `PlaywrightFigmaGateway` no comparten browser:** cada
-  uno abre su propia instancia de Playwright cuando la necesita; lo único que
-  cruza entre login y scraping es el valor `FigmaSession` vía `SessionStore`.
-  Es el único diseño compatible con el caso real del CLI (login y
-  `resolveUrl` corren en procesos separados, sin ningún objeto vivo que
-  sobreviva entre ambos), así que ni el reintento interno de `resolveUrl`
-  tras una sesión expirada comparte contexto de browser — reabre uno nuevo.
+- **`PlaywrightLogin` and `PlaywrightFigmaGateway` don't share a browser:**
+  each one opens its own Playwright instance when it needs one; the only
+  thing that crosses between login and scraping is the `FigmaSession` value
+  via `SessionStore`. It's the only design compatible with the CLI's real
+  use case (login and `resolveUrl` run in separate processes, with no live
+  object surviving between them), so even `resolveUrl`'s internal retry
+  after an expired session doesn't share a browser context — it reopens a
+  new one.
 
-- **`FigmaSession.credential`, no `.cookies`:** el nombre no fija el
-  mecanismo concreto (hoy son cookies serializadas), para no filtrar ese
-  detalle volátil en un tipo que el core y los tres puertos comparten
-  directamente.
+- **`FigmaSession.credential`, not `.cookies`:** the name doesn't lock in
+  the concrete mechanism (today it's serialized cookies), so that volatile
+  detail doesn't leak into a type shared directly by the core and the three
+  ports.
 
-- **El core siempre requiere sesión, sin modo anónimo:** Figma no expone el
-  panel de Inspect (medidas, colores) a visitantes sin login, ni siquiera en
-  archivos públicos — confirmado, no hay forma de soportar ese caso hoy. La
-  primera implementación de `PlaywrightFigmaGateway` lee ese panel por DOM,
-  lo cual depende de que la sesión siempre esté presente. Un adapter futuro
-  que en cambio intercepte la respuesta de red (ver `FigmaFetchResult`) es
-  el ejemplo concreto de por qué `FigmaGateway` es un puerto: se podría
-  sumar sin tocar el core ni los otros adapters.
+- **The core always requires a session, with no anonymous mode:** Figma
+  doesn't expose the Inspect panel (measurements, colors) to visitors
+  without a login, not even on public files — confirmed, there's no way to
+  support that case today. The first implementation of
+  `PlaywrightFigmaGateway` reads that panel via the DOM, which depends on
+  the session always being present. A future adapter that instead
+  intercepts the network response (see `FigmaFetchResult`) is the concrete
+  example of why `FigmaGateway` is a port: it could be added without
+  touching the core or the other adapters.
 
-- **Patrón — parseo de URL:** ninguno GoF. Una URL de Figma solo puede decir
-  "hay un `node-id`" o "no hay ninguno" — nunca dice si ese id es una página
-  o un elemento cualquiera, porque una página es, en los datos reales de
-  Figma, un nodo más (`type: "CANVAS"`). Por eso `FigmaGateway` no distingue
-  "traer un nodo" de "traer una página": ambas van por `fetchNode`, y es
-  `build-tree.ts` quien decide después, mirando el `type` del nodo ya traído,
-  si arma un `FigmaNode` o un `FigmaPage`. Solo el caso sin ningún `node-id`
-  necesita su propio método (`fetchDefaultPage`), porque ahí no hay id que
-  buscar.
-  Cada instancia de un componente ya es, en el modelo real de Figma, un nodo
-  completo e independiente (puede tener overrides propios) — no hay datos
-  geométricos repetidos que deduplicar, así que `build-tree.ts` tampoco tiene
-  lógica de dedup: solo mapea de la forma cruda a la forma final.
+- **Pattern — URL parsing:** none from GoF. A Figma URL can only say "there
+  is a `node-id`" or "there isn't one" — it never says whether that id is a
+  page or any other element, because a page is, in Figma's real data, just
+  another node (`type: "CANVAS"`). That's why `FigmaGateway` doesn't
+  distinguish "fetch a node" from "fetch a page": both go through
+  `fetchNode`, and it's `build-tree.ts` that later decides, by looking at
+  the `type` of the already-fetched node, whether to build a `FigmaNode` or
+  a `FigmaPage`. Only the case with no `node-id` at all needs its own
+  method (`fetchDefaultPage`), because there's no id to look up there.
+  Each instance of a component is already, in Figma's real model, a
+  complete and independent node (it can have its own overrides) — there's
+  no repeated geometric data to deduplicate, so `build-tree.ts` has no
+  dedup logic either: it only maps from the raw shape to the final shape.
 
-- **Modelo de errores:** `Result<T, E>` explícito (sin `throw`). Las funciones
-  del core que pueden fallar devuelven `{ ok: true, value }` o
-  `{ ok: false, error }`, donde `error` trae un código constante (string) y un
-  mensaje legible. Se prefirió sobre excepciones nativas para forzar a CLI/MCP a
-  manejar el error en el tipo de retorno en vez de depender de `try/catch`.
+- **Error model:** explicit `Result<T, E>` (no `throw`). Core functions
+  that can fail return `{ ok: true, value }` or `{ ok: false, error }`,
+  where `error` carries a constant code (string) and a readable message.
+  Chosen over native exceptions to force CLI/MCP to handle the error in the
+  return type instead of relying on `try/catch`.
 
-- **Volatilidad:**
-  - **Volátil:** el mecanismo de scraping y de sesión (Playwright hoy; podría
-    cambiar si Figma habilita la REST API sin rate limits, o si se cambia de
-    herramienta de scraping). Vive en la capa de adapters, fuera del core.
-  - **Estable:** el contrato de datos (forma del árbol de nodos, reglas de
-    validación de URL). Vive en el core y no depende de cómo se obtienen los
-    datos.
+- **Volatility:**
+  - **Volatile:** the scraping and session mechanism (Playwright today;
+    could change if Figma enables the REST API without rate limits, or if
+    the scraping tool changes). Lives in the adapters layer, outside the
+    core.
+  - **Stable:** the data contract (node tree shape, URL validation rules).
+    Lives in the core and doesn't depend on how the data is obtained.
 
-- **Organización — dominio vs. feature:** por dominio. Un único módulo `figma`
-  agrupa sesión + obtención de información, porque comparten el mismo dominio y
-  hoy solo hay un consumidor real (CLI y MCP, ambos wrappers finos sobre el
-  mismo core). No se fragmenta por feature.
+- **Organization — domain vs. feature:** by domain. A single `figma` module
+  groups session + information fetching, because they share the same
+  domain and today there's only one real set of consumers (CLI and MCP,
+  both thin wrappers over the same core). It isn't fragmented by feature.
 
-- **Gateway devuelve datos crudos, no la forma final del core:**
-  `FigmaGateway` expone `RawFigmaNode` — la forma rica y volátil que trae
-  Figma. `build-tree.ts` selecciona de ahí el subconjunto estable de campos
-  que expone el core (`FigmaNode`/`FigmaPage`), para que el contrato del core
-  no dependa de qué tan grande o cambiante sea la forma real de los datos de
-  Figma. Ver sección de interfaces.
+- **Gateway returns raw data, not the core's final shape:** `FigmaGateway`
+  exposes `RawFigmaNode` — the rich, volatile shape Figma provides.
+  `build-tree.ts` selects from it the stable subset of fields the core
+  exposes (`FigmaNode`/`FigmaPage`), so the core's contract doesn't depend
+  on how large or changeable Figma's real data shape is. See the
+  interfaces section.
 
-- **Relaciones:**
-  - `DERIVES_FROM` [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec)
-  - `DERIVES_FROM` [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec)
+- **Relationships:**
+  - `DERIVES_FROM` [`specs/manage_figma_session.spec`](../specs/manage_figma_session.spec)
+  - `DERIVES_FROM` [`specs/get_figma_information.spec`](../specs/get_figma_information.spec)
 
-## Estructura de carpetas propuesta
+## Proposed folder structure
 
 ```
 src/
-  figma/                        # dominio, estable
-    core.ts                     # FigmaScraperCore: orquesta validar → parsear → sesión → gateway → armar árbol
+  figma/                        # domain, stable
+    core.ts                     # FigmaScraperCore: orchestrates validate → parse → session → gateway → build tree
     ports.ts                    # SessionStore, InteractiveLogin, FigmaGateway
-    model.ts                    # FigmaNode, FigmaPage, estilos
-    errors.ts                   # Result<T,E>, FigmaScraperError, códigos
+    model.ts                    # FigmaNode, FigmaPage, styles
+    errors.ts                   # Result<T,E>, FigmaScraperError, codes
     build-tree.ts               # resolve: RawFigmaNode → FigmaNode | FigmaPage
   adapters/
-    cookie-session-store.ts     # implementa SessionStore; sin Playwright, es solo lectura/escritura de un archivo
-    playwright/                 # volátil, aislado del core
-      playwright-figma-gateway.ts  # implementa FigmaGateway
-      playwright-login.ts          # implementa InteractiveLogin
+    cookie-session-store.ts     # implements SessionStore; no Playwright, just reads/writes a file
+    playwright/                 # volatile, isolated from the core
+      playwright-figma-gateway.ts  # implements FigmaGateway
+      playwright-login.ts          # implements InteractiveLogin
 ```
 
-Este árbol vive en `packages/core/src/` dentro del monorepo — el paquete publicado es `@figtools/core`.
+This tree lives in `packages/core/src/` inside the monorepo — the published package is `@figtools/core`.
 
 ## Interfaces
 
-### Diagrama (mermaid)
+### Diagram (mermaid)
 
 ```mermaid
 flowchart TD
@@ -121,13 +124,13 @@ flowchart TD
     Core --> PGateway[["Port: FigmaGateway"]]
     Core --> BuildTree[build-tree.ts]
 
-    ACookie[CookieSessionStore] -.implementa.-> PSession
-    ALogin[PlaywrightLogin] -.implementa.-> PLogin
-    AGateway[PlaywrightFigmaGateway] -.implementa.-> PGateway
+    ACookie[CookieSessionStore] -.implements.-> PSession
+    ALogin[PlaywrightLogin] -.implements.-> PLogin
+    AGateway[PlaywrightFigmaGateway] -.implements.-> PGateway
 
-    ACookie -.usa.-> FS[(archivo local)]
-    ALogin -.usa.-> Playwright[(Playwright / headless browser)]
-    AGateway -.usa.-> Playwright
+    ACookie -.uses.-> FS[(local file)]
+    ALogin -.uses.-> Playwright[(Playwright / headless browser)]
+    AGateway -.uses.-> Playwright
 ```
 
 ### TypeScript
@@ -138,10 +141,10 @@ export type FigmaScraperErrorCode =
   | "VALIDATION_NOT_FIGMA_URL"
   | "NOT_FOUND_OR_NO_ACCESS"
   | "AUTHENTICATION_FAILED"
-  // El nodo existe y es accesible; el gateway lo confirma pero no encuentra
-  // ningún panel de Figma legible con los datos del nodo, según el permiso
-  // de la sesión sobre el archivo (ver spec: "Obtener un nodo puntual sin
-  // panel de datos disponible").
+  // The node exists and is accessible; the gateway confirms it but can't
+  // find any readable Figma panel with the node's data, depending on the
+  // session's permission on the file (see spec: "Get a specific node with
+  // no data panel available").
   | "INCOMPLETE_NODE_DATA";
 
 export interface FigmaScraperError {
@@ -219,23 +222,24 @@ export interface InteractiveLogin {
   authenticate(): Promise<FigmaSession>;
 }
 
-// El gateway distingue "sesión expirada" de "no existe / sin acceso": son la
-// misma forma de fallo HTTP en Figma, pero el core necesita diferenciarlas
-// para saber si debe disparar un re-login solo o devolver un error al caller.
+// The gateway distinguishes "session expired" from "doesn't exist / no
+// access": they're the same kind of HTTP failure in Figma, but the core
+// needs to tell them apart to know whether to trigger a re-login on its
+// own or return an error to the caller.
 export type FigmaFetchResult<T> =
   | { status: "ok"; value: T }
   | { status: "not-found-or-no-access" }
   | { status: "session-expired" };
 
 export interface FigmaGateway {
-  // El node-id solo tiene sentido dentro de un archivo: hace falta el
-  // fileKey también para poder navegar a la URL real del nodo.
+  // node-id only makes sense within a file: fileKey is also needed to be
+  // able to navigate to the node's real URL.
   fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
   fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
 }
 
-// Si raw.type === "CANVAS" arma un FigmaPage (sus children pasan a ser los
-// nodos de la página); para cualquier otro type devuelve un FigmaNode.
+// If raw.type === "CANVAS" builds a FigmaPage (its children become the
+// page's nodes); for any other type it returns a FigmaNode.
 export function resolve(raw: RawFigmaNode): FigmaScrapeResult;
 
 export interface FigmaScraperCoreDeps {
@@ -246,19 +250,19 @@ export interface FigmaScraperCoreDeps {
 
 export interface FigmaScraperCore {
   /**
-   * No requiere reauthenticate() antes: si no hay sesión guardada, o si el
-   * gateway responde "session-expired", dispara el login por su cuenta,
-   * guarda la sesión nueva vía sessionStore, y reintenta esta misma
-   * solicitud antes de devolver el resultado (spec: "La sesión expira
-   * durante una solicitud").
+   * Doesn't require reauthenticate() beforehand: if there's no saved
+   * session, or if the gateway responds "session-expired", it triggers
+   * the login on its own, saves the new session via sessionStore, and
+   * retries this same request before returning the result (spec: "The
+   * session expires during a request").
    */
   resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
 
   /**
-   * Independiente de resolveUrl: fuerza un login nuevo aunque la sesión
-   * actual siga siendo válida (spec: "Iniciar sesión de nuevo..."). Guarda
-   * la sesión resultante vía sessionStore antes de devolverla, para que
-   * resolveUrl la use en llamadas siguientes.
+   * Independent from resolveUrl: forces a new login even if the current
+   * session is still valid (spec: "Log in again..."). Saves the
+   * resulting session via sessionStore before returning it, so
+   * resolveUrl uses it in later calls.
    */
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
@@ -282,10 +286,10 @@ const core = createFigmaScraperCore({
   gateway: new PlaywrightFigmaGateway(),
 });
 
-// Primer uso, sesión expirada, o sesión válida: mismo método en los tres
-// casos, resolveUrl decide solo qué hacer con la sesión.
+// First use, expired session, or valid session: same method in all three
+// cases, resolveUrl decides on its own what to do with the session.
 const result = await core.resolveUrl(
-  "https://www.figma.com/file/ABC123/Mi-Diseno?node-id=1-23"
+  "https://www.figma.com/file/ABC123/My-Design?node-id=1-23"
 );
 
 if (!result.ok) {
@@ -295,14 +299,14 @@ if (!result.ok) {
   console.log(node.type, node.children.length);
 }
 
-// Comando explícito "figtools login" en el CLI, por ejemplo.
+// Explicit "figtools login" command in the CLI, for example.
 const reauth = await core.reauthenticate();
 if (!reauth.ok) {
   console.error(reauth.error.code, reauth.error.message);
 }
 ```
 
-## Ver también
+## See also
 
-- [`specs/gestionar_sesion_figma.spec`](../specs/gestionar_sesion_figma.spec) — escenarios de login, reutilización de sesión y expiración que motivan `SessionStore` / `InteractiveLogin`.
-- [`specs/obtener_informacion_figma.spec`](../specs/obtener_informacion_figma.spec) — escenarios de obtención de nodo/archivo que motivan `FigmaGateway` y `build-tree.ts`.
+- [`specs/manage_figma_session.spec`](../specs/manage_figma_session.spec) — login, session reuse, and expiration scenarios that motivate `SessionStore` / `InteractiveLogin`.
+- [`specs/get_figma_information.spec`](../specs/get_figma_information.spec) — node/file fetching scenarios that motivate `FigmaGateway` and `build-tree.ts`.
