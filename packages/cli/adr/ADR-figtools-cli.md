@@ -136,8 +136,10 @@ headed browsers at once.
   - `parseArgs(argv: string[])`: receives the arguments already trimmed
     (without `node` or the script path) and returns the parsed
     configuration (URLs, `format`, `outputPath`, `quiet`, or the `login`
-    subcommand) or a validation error — it never reads `process.argv` or
-    prints anything on its own.
+    subcommand), a help/version request already rendered as text
+    (`ParseArgsInfo`), or a validation error — it never reads
+    `process.argv`, never calls `process.exit`, and never prints anything
+    on its own.
   - `decideOutputTarget(outputPath: string | undefined, format: "json" | "markdown")`:
     decides whether `outputPath` is interpreted as a file or a folder (or
     whether the extension isn't supported), without touching the
@@ -146,6 +148,48 @@ headed browsers at once.
   `resolveAll` and the writers, and prints/calls `process.exit` at the end.
   This is the same as separating pure, testable logic from its effects,
   already applied in `slugifyWithCollisions` for the markdown writer.
+
+- **Argument parsing library — commander, wrapped to stay pure.** This
+  ADR previously left the choice between manual parsing and a library as
+  an open question (see `pending-decisions.md` — now resolved). `commander`
+  was chosen over `yargs`, `cac`, and `clipanion`: it's the de facto
+  standard, has zero runtime dependencies, bundles native TypeScript
+  types, is very actively maintained, and its `Option.choices()` gives
+  native validation for `--format` (`yargs` v18 dropped its bundled Node
+  types in favor of an outdated `@types/yargs`; `clipanion` has the
+  purest design of the four but had no commits in ~2 years and never left
+  release-candidate status; `cac` is the lightest and parses purely by
+  default but has no native choices validation).
+
+  By default, commander calls `process.exit()` on `--help`/`--version`/a
+  parse error, and prints directly to stdout/stderr — both of which would
+  break `parseArgs`'s existing purity guarantee. `createProgram()` (in
+  `cli.ts`) neutralizes both: `program.exitOverride()` makes commander
+  throw a `CommanderError` instead of exiting, and
+  `program.configureOutput({ writeOut, writeErr })` captures everything
+  commander would have printed into an in-memory string instead of
+  writing it to a real stream. `parseArgs` inspects the thrown error's
+  `code` (`"commander.helpDisplayed"`, `"commander.version"`,
+  `"commander.missingArgument"`, or anything else) to decide whether to
+  return an info result (help/version, with the captured text as
+  `output`) or a validation error — the caller (`main()`) is the one that
+  actually writes that captured text to stdout/stderr and calls
+  `process.exit()`.
+
+- **`resolve` as commander's default command, `login` as the only named
+  subcommand.** To preserve the exact existing CLI surface
+  (`figtools <urls...> [flags]` with no command name, and `figtools login`
+  as a separate case) without a breaking change, URL resolution is
+  registered as `program.command("resolve", { isDefault: true })` instead
+  of living directly on the root `program`. commander dispatches to the
+  default command automatically whenever the first argument doesn't match
+  a known subcommand name (see `_defaultCommandName` in commander's
+  source) — so `figtools <url>` keeps working without writing
+  `figtools resolve <url>`, while `figtools login` still resolves to its
+  own subcommand. Each subcommand's `.action()` callback captures its
+  parsed result into a closure variable that `parseArgs` reads after
+  `program.parse()` returns, since commander has no single object that
+  reports "which subcommand ended up running" ahead of time.
 
 - **Relationships:**
   - `DERIVES_FROM` [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
@@ -212,10 +256,27 @@ export interface ParsedArgs {
   command?: "login";
 }
 
-export type ParseArgsResult = Result<ParsedArgs, { code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION"; message: string }>;
+type ParseArgsError = {
+  code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION" | "COMMANDER_ERROR";
+  message: string;
+};
+
+// help/version end parsing without being a validation error: commander
+// already generated the text (help or version number) and expects the
+// caller to print it and exit with code 0, instead of treating it as a
+// failure.
+type ParseArgsInfo = { code: "HELP_DISPLAYED" | "VERSION_DISPLAYED"; output: string };
+
+export type ParseArgsResult =
+  | { ok: true; value: ParsedArgs }
+  | { ok: false; error: ParseArgsError }
+  | { ok: false; info: ParseArgsInfo };
 
 // Receives the arguments already trimmed (without `node` or the script path).
-// Doesn't read process.argv or print anything — pure function.
+// Doesn't read process.argv or print anything — pure function. Wraps a
+// commander Command configured with exitOverride() + configureOutput() so
+// commander's default process.exit()/direct-print behavior on
+// --help/--version/parse errors is captured instead of executed.
 export function parseArgs(argv: string[]): ParseArgsResult;
 
 export type OutputTarget =

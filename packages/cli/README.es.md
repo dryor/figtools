@@ -72,10 +72,14 @@ Omite el mensaje `Resolving N URL(s)...` en stderr — útil si estás capturand
 | `--format` | `json`, `markdown` | `json` | Formato de salida |
 | `--output` | ruta de archivo o carpeta | stdout (json) / `.` (markdown) | Dónde escribir el resultado |
 | `--quiet` | — | `false` | Omite el mensaje de progreso en stderr |
+| `--help`, `-h` | — | — | Imprime información de uso y termina |
+| `--version`, `-v` | — | — | Imprime la versión del CLI y termina |
 
 ## Troubleshooting
 
 - **`Error: unsupported extension "<ext>"`**: con `--format markdown`, `--output` siempre se trata como una carpeta. Con `--format json`, solo se acepta una ruta terminada en `.json` o sin extensión (tratada como carpeta); cualquier otra extensión falla explícitamente.
+- **`--format` argument 'xml' is invalid. Allowed choices are json, markdown.`**: un valor de `--format` no soportado se rechaza explícitamente en vez de caer en `json` en silencio.
+- **`error: unknown option '--foo'`**: una flag no reconocida se rechaza explícitamente en vez de ser ignorada en silencio.
 - **El proceso termina con código `1` pero imprimió resultados**: significa que al menos una de las URLs falló — revisa el bloque `URLs with errors:` al final de stderr para ver el código (`FigmaScraperErrorCode`) y mensaje de cada una. Ver la tabla de errores en el [README de `@figtools/core`](../core/README.es.md#errores-posibles).
 - **`figtools login` no avanza**: la ventana de Chromium espera indefinidamente a que termines el login manual; confirma que llegaste a `https://www.figma.com/files/...` antes de cerrar la ventana.
 
