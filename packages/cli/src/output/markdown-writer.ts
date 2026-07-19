@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FigmaNode, FigmaPage, FigmaScrapeResult } from "@figtools/core";
+import type { FigmaNode, FigmaPage, FigmaPaint, FigmaScrapeResult } from "@figtools/core";
 import { slugifyWithCollisions } from "./slugify";
 
 export interface MarkdownWriterOptions {
@@ -11,8 +11,45 @@ function isFigmaPage(result: FigmaScrapeResult): result is FigmaPage {
   return "nodes" in result;
 }
 
+function formatPaint(paint: FigmaPaint): string {
+  const { r, g, b, a } = paint.color;
+  const color = `rgba(${r}, ${g}, ${b}, ${a})`;
+  return paint.styleName ? `${paint.styleName} (${color})` : color;
+}
+
+function metadataLines(node: FigmaNode): string[] {
+  const lines: string[] = [`type: ${node.type}`];
+
+  if (node.position.x !== null && node.position.y !== null) {
+    lines.push(`position: x=${node.position.x}, y=${node.position.y}`);
+  }
+  if (node.size.width !== null && node.size.height !== null) {
+    lines.push(`size: width=${node.size.width}, height=${node.size.height}`);
+  }
+
+  const { typography, fills, strokes, ...rest } = node.styles;
+  for (const [key, value] of Object.entries(rest)) {
+    if (value === undefined) continue;
+    lines.push(`${key}: ${value}`);
+  }
+  if (fills && fills.length > 0) {
+    lines.push(`fills: ${fills.map(formatPaint).join(", ")}`);
+  }
+  if (strokes && strokes.length > 0) {
+    lines.push(`strokes: ${strokes.map(formatPaint).join(", ")}`);
+  }
+  if (typography) {
+    for (const [key, value] of Object.entries(typography)) {
+      if (value === null || value === undefined) continue;
+      lines.push(`typography.${key}: ${value}`);
+    }
+  }
+
+  return lines;
+}
+
 function leafContent(node: FigmaNode): string {
-  return `# ${node.name}\n\ntype: ${node.type}\n`;
+  return `# ${node.name}\n\n${metadataLines(node).join("\n")}\n`;
 }
 
 function containerContent(name: string, children: FigmaNode[], childSlugs: string[]): string {
