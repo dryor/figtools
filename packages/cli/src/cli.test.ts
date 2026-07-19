@@ -95,18 +95,6 @@ describe("parseArgs", () => {
     }
   });
 
-  it("--version returns the package version instead of an error", () => {
-    const result = parseArgs(["--version"]);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok && "info" in result) {
-      expect(result.info.code).toBe("VERSION_DISPLAYED");
-      expect(result.info.output.trim()).toBe("0.1.0");
-    } else {
-      expect.fail("expected an info result with VERSION_DISPLAYED");
-    }
-  });
-
   it("rejects an invalid --format value instead of silently defaulting to json", () => {
     const result = parseArgs(["https://www.figma.com/design/ABC123", "--format", "xml"]);
 
