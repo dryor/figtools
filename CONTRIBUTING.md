@@ -1,49 +1,26 @@
+*[Leer en español](./CONTRIBUTING.es.md)*
+
 # Contributing
 
 ## Setup
 
-1. `pnpm install` (instala las dependencias de todos los paquetes del
-   workspace)
-2. Crear un `.env` en la raíz con una sesión real de Figma (necesaria para
-   `pnpm test:e2e`, ver [Troubleshooting](#troubleshooting)):
-   ```
-   FIGMA_TEST_CREDENTIAL='[...]'   # cookies de sesión, ver PlaywrightLogin
-   FIGMA_TEST_FILE_KEY=...         # archivo con permiso de edición
-   FIGMA_TEST_NODE_ID=...
-   FIGMA_TEST_VIEW_FILE_KEY=...    # archivo con permiso de solo view
-   FIGMA_TEST_VIEW_NODE_ID=...
-   ```
+1. `pnpm install` (installs dependencies for every package in the workspace)
 
 ## Tests
 
-- `pnpm test` corre los tests unitarios de todos los paquetes (no requiere
-  `.env`).
-- `pnpm --filter @figtools/core test` corre solo los tests unitarios de ese
-  paquete.
-- `pnpm test:e2e` corre los tests end-to-end contra figma.com real (requiere
-  el `.env` del paso de Setup).
-- `pnpm typecheck` corre `tsc --noEmit` en todos los paquetes.
-- `pnpm build` compila todos los paquetes (Rslib) a `packages/*/dist/`.
+- `pnpm test` runs the unit tests for every package.
+- `pnpm --filter @figtools/core test` runs only that package's unit tests.
+- `pnpm test:e2e` — **still work in progress.** These tests drive a real
+  Playwright browser against figma.com, and there's still no stable way to
+  configure which Figma files/nodes they run against — the current fixture
+  mechanism is under revision and likely to change. Don't rely on it yet.
+- `pnpm typecheck` runs `tsc --noEmit` on every package.
+- `pnpm build` builds every package (Rslib) into `packages/*/dist/`.
 
-## Troubleshooting
+## Monorepo structure
 
-- **`pnpm test:e2e` tarda varios minutos**: recorre el árbol completo del
-  nodo de prueba clickeando cada fila del layers panel vía Playwright real
-  contra figma.com — no hay forma de acelerarlo sin dejar de probar contra
-  el DOM real.
-- **`pnpm test:e2e` falla con sesión expirada**: `FIGMA_TEST_CREDENTIAL` son
-  cookies serializadas con expiración; corré el test de
-  `playwright-login.e2e.test.ts` con `FIGMA_E2E_LOGIN=1` para generar una
-  sesión nueva (requiere completar el login a mano en el browser que se
-  abre).
-- **Un nodeId que funcionaba deja de encontrarse**: los nodeIds de hijos en
-  el layers panel son estables solo dentro de una misma carga de página, no
-  entre corridas — confirmado corriendo contra sesiones reales.
-
-## Estructura del monorepo
-
-Cada paquete publicable vive en `packages/<nombre>/`, con su propio
-`package.json`, `tsconfig.json` (que extiende `tsconfig.base.json` de la
-raíz) y `vitest.config.ts`. Los ADRs y specs de cada paquete viven junto a
-su código (`packages/<nombre>/adr/`, `packages/<nombre>/specs/`), no en la
-raíz — documentan decisiones específicas de ese paquete.
+Each publishable package lives in `packages/<name>/`, with its own
+`package.json`, `tsconfig.json` (extending the root's `tsconfig.base.json`)
+and `vitest.config.ts`. Each package's ADRs and specs live next to its code
+(`packages/<name>/adr/`, `packages/<name>/specs/`), not at the root — they
+document decisions specific to that package.
