@@ -1,5 +1,11 @@
 # @figtools/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- 52ca094: Fix the markdown output dropping position, size, and styles (fills, strokes, corner radius, opacity, typography) for every node — the generated `.md` files only ever showed `name` and `type`, even though that data was already being scraped.
+
 ## 0.2.0
 
 ### Minor Changes
