@@ -13,7 +13,7 @@ Una funcionalidad nueva pasa por 4 etapas secuenciales, cada una mergeada
 antes de arrancar la siguiente. Cada etapa tiene su propio PR, y cada PR
 usa como base la rama de la etapa anterior — no `main` — para que la
 revisión pueda avanzar en paralelo en vez de bloquearse esperando un merge
-completo a main entre etapas ([stacked PRs](https://github.blog/2024-05-15-stacking-pull-requests-with-github/)
+completo a main entre etapas ([stacked PRs](https://github.github.com/gh-stack/)
 de GitHub: `gh pr create --base <rama-de-la-etapa-anterior>` en vez de
 `--base main`; al mergear una etapa, GitHub retarget automáticamente su PR
 hijo hacia `main`).

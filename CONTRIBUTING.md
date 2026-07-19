@@ -12,7 +12,7 @@ A new feature goes through 4 sequential stages, each one merged before the
 next starts. Each stage has its own PR, and each PR is based on the
 previous stage's branch — not on `main` — so review can happen in
 parallel instead of blocking on a full merge-to-main between stages
-(GitHub's [stacked PRs](https://github.blog/2024-05-15-stacking-pull-requests-with-github/):
+(GitHub's [stacked PRs](https://github.github.com/gh-stack/):
 `gh pr create --base <previous-stage-branch>` instead of `--base main`;
 once a stage merges, GitHub retargets its child PR onto `main`
 automatically).
