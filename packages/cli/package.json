@@ -1,6 +1,6 @@
 {
   "name": "@figtools/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Resolves one or more Figma URLs from the command line and writes the result as JSON or as a navigable markdown tree meant to be used as a data source by an LLM.",
   "keywords": [
     "figma",
