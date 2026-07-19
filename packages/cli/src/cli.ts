@@ -27,9 +27,10 @@ type ParseArgsError = {
   message: string;
 };
 
-// help/version terminan el parseo sin ser un error de validación: commander ya
-// generó el texto (ayuda o número de versión) y espera que el caller lo
-// imprima y salga con código 0, en vez de tratarlo como un fallo.
+// help/version end parsing without being a validation error: commander
+// already generated the text (help or version number) and expects the
+// caller to print it and exit with code 0, instead of treating it as a
+// failure.
 type ParseArgsInfo = { code: "HELP_DISPLAYED" | "VERSION_DISPLAYED"; output: string };
 
 export type ParseArgsResult =
@@ -49,11 +50,12 @@ interface ResolveOpts {
   quiet: boolean;
 }
 
-// login es el único subcomando nombrado; resolve queda marcado como
-// "default command" (isDefault: true) para que `figtools <urls...>` siga
-// funcionando sin escribir `figtools resolve <urls...>` — commander despacha
-// a resolve automáticamente cuando el primer argumento no coincide con
-// ningún nombre de subcomando conocido (ver command.js: _defaultCommandName).
+// login is the only named subcommand; resolve is marked as the
+// "default command" (isDefault: true) so `figtools <urls...>` keeps
+// working without having to write `figtools resolve <urls...>` —
+// commander dispatches to resolve automatically whenever the first
+// argument doesn't match a known subcommand name (see command.js:
+// _defaultCommandName).
 function createProgram(): { program: Command; getParsed: () => ParsedArgs | undefined; getOutput: () => string } {
   let output = "";
   let parsed: ParsedArgs | undefined;
@@ -128,8 +130,8 @@ export function parseArgs(argv: string[]): ParseArgsResult {
 
   const value = getParsed();
   if (!value) {
-    // No debería alcanzarse en uso normal: si el parseo no falló y ningún
-    // action() corrió, es que no se pasó ningún argumento en absoluto.
+    // Shouldn't be reachable in normal use: if parsing didn't fail and no
+    // action() ran, it means no argument at all was passed.
     return {
       ok: false,
       error: { code: "VALIDATION_NO_URLS", message: "At least one Figma URL is required" },
