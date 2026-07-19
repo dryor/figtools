@@ -14,8 +14,8 @@ function toFigmaNode(raw: RawFigmaNode): FigmaNode {
   };
 }
 
-// Una página es, en los datos reales de Figma, un nodo type "CANVAS": sus
-// children pasan a ser los nodos de nivel superior de la página.
+// A page is, in Figma's real data, a node of type "CANVAS": its children
+// become the page's top-level nodes.
 export function resolve(raw: RawFigmaNode): FigmaScrapeResult {
   if (raw.type === "CANVAS") {
     const page: FigmaPage = {

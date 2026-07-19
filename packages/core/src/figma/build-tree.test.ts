@@ -3,7 +3,7 @@ import { resolve } from "./build-tree";
 import type { RawFigmaNode, FigmaNode, FigmaPage } from "./model";
 
 describe("build-tree: resolve", () => {
-  it("mapea un nodo que no es una página a FigmaNode, conservando tipo, posición, tamaño y jerarquía de hijos", () => {
+  it("maps a node that isn't a page to FigmaNode, preserving type, position, size, and children hierarchy", () => {
     const raw: RawFigmaNode = {
       id: "1:1", name: "Button", type: "COMPONENT",
       position: { x: 1, y: 2 }, size: { width: 10, height: 20 },

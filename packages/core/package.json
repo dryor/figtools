@@ -1,9 +1,22 @@
 {
   "name": "@figtools/core",
   "version": "0.1.0",
-  "description": "Trae la información de un nodo o archivo de Figma (posición, tamaño, estilos, jerarquía) sin las limitaciones de una cuenta free: sin los rate limits de la REST API oficial, sin requerir el plan de Dev Mode.",
+  "description": "Fetches the data of a Figma node or file (position, size, styles, hierarchy) without the limitations of a free account: no official REST API rate limits, no Dev Mode plan required.",
+  "keywords": ["figma", "figma-api", "scraper", "design-tokens", "playwright"],
+  "homepage": "https://github.com/dryor/figtools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dryor/figtools.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/dryor/figtools/issues"
+  },
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -19,6 +32,9 @@
     "test:watch": "vitest --project unit",
     "test:e2e": "vitest run --project e2e",
     "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "playwright": "^1.61.1"

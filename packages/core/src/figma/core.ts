@@ -12,8 +12,9 @@ export interface FigmaScraperCoreDeps {
 export interface FigmaScraperCore {
   resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
-  // Dispara login solo si no hay sesión guardada. A diferencia de
-  // reauthenticate(), no fuerza un login nuevo si la sesión actual es válida.
+  // Triggers login only if there's no saved session. Unlike
+  // reauthenticate(), it doesn't force a new login if the current session
+  // is valid.
   ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
 
@@ -22,22 +23,22 @@ interface ParsedFigmaUrl {
   nodeId: string | null;
 }
 
-// El node-id de la URL usa guiones ("1-23"); Figma lo representa con ":"
-// internamente ("1:23").
+// The URL's node-id uses hyphens ("1-23"); Figma represents it internally
+// with ":" ("1:23").
 function parseFigmaUrl(url: string): Result<ParsedFigmaUrl, FigmaScraperError> {
   if (url.trim() === "") {
-    return { ok: false, error: { code: "VALIDATION_EMPTY_URL", message: "La URL no puede estar vacía" } };
+    return { ok: false, error: { code: "VALIDATION_EMPTY_URL", message: "The URL can't be empty" } };
   }
 
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "La URL no es válida" } };
+    return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "The URL isn't valid" } };
   }
 
   if (!parsed.hostname.endsWith("figma.com")) {
-    return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "La URL no pertenece a Figma" } };
+    return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "The URL doesn't belong to Figma" } };
   }
 
   const fileKeyMatch = parsed.pathname.match(/\/(?:file|design|proto|board)\/([^/]+)/);
@@ -80,7 +81,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
         try {
           renewed = await login();
         } catch {
-          return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "No se pudo iniciar sesión" } };
+          return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "Couldn't log in" } };
         }
         fetchResult = await fetchRaw(parsed, renewed);
       }
@@ -88,19 +89,19 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
       if (fetchResult.status === "not-found-or-no-access") {
         return {
           ok: false,
-          error: { code: "NOT_FOUND_OR_NO_ACCESS", message: "El nodo o archivo no existe o no es accesible" },
+          error: { code: "NOT_FOUND_OR_NO_ACCESS", message: "The node or file doesn't exist or isn't accessible" },
         };
       }
       if (fetchResult.status === "session-expired") {
         return {
           ok: false,
-          error: { code: "AUTHENTICATION_FAILED", message: "La sesión sigue expirada después de reautenticar" },
+          error: { code: "AUTHENTICATION_FAILED", message: "The session is still expired after reauthenticating" },
         };
       }
       if (fetchResult.status === "incomplete-node-data") {
         return {
           ok: false,
-          error: { code: "INCOMPLETE_NODE_DATA", message: "No se pudo leer los datos completos del nodo" },
+          error: { code: "INCOMPLETE_NODE_DATA", message: "Couldn't read the node's complete data" },
         };
       }
 
@@ -112,7 +113,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
         const session = await login();
         return { ok: true, value: session };
       } catch {
-        return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "No se pudo completar el login" } };
+        return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "Couldn't complete the login" } };
       }
     },
 
@@ -121,7 +122,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
         const session = await loadOrLogin();
         return { ok: true, value: session };
       } catch {
-        return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "No se pudo iniciar sesión" } };
+        return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "Couldn't log in" } };
       }
     },
   };

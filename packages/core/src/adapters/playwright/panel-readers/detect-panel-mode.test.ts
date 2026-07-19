@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { detectPanelMode } from "./detect-panel-mode";
 
-// Prueba solo la lógica de decisión (qué modo se elige dado qué selectores
-// están presentes), no si esos selectores existen realmente en el DOM de
-// Figma — eso solo lo confirma el test e2e contra una sesión real.
+// Tests only the decision logic (which mode is chosen given which
+// selectors are present), not whether those selectors actually exist in
+// Figma's DOM — only the e2e test against a real session confirms that.
 function fakeDom(present: string[]) {
   return {
     async hasSelector(selector: string): Promise<boolean> {
@@ -12,23 +12,23 @@ function fakeDom(present: string[]) {
   };
 }
 
-describe("obtener_informacion_figma: Detectar el modo de panel disponible", () => {
-  it("elige inspection cuando el panel de inspección está presente", async () => {
+describe("get_figma_information: Detect the available panel mode", () => {
+  it("chooses inspection when the inspection panel is present", async () => {
     const dom = fakeDom(["properties-inspection-panel"]);
     expect(await detectPanelMode(dom)).toBe("inspection");
   });
 
-  it("elige edit cuando el panel de edición está presente", async () => {
+  it("chooses edit when the edit panel is present", async () => {
     const dom = fakeDom(["x-y-inputs-row"]);
     expect(await detectPanelMode(dom)).toBe("edit");
   });
 
-  it("prioriza inspection si ambos paneles quedaran presentes a la vez", async () => {
+  it("prioritizes inspection if both panels were present at the same time", async () => {
     const dom = fakeDom(["properties-inspection-panel", "x-y-inputs-row"]);
     expect(await detectPanelMode(dom)).toBe("inspection");
   });
 
-  it("elige none cuando ningún panel conocido está presente", async () => {
+  it("chooses none when no known panel is present", async () => {
     const dom = fakeDom([]);
     expect(await detectPanelMode(dom)).toBe("none");
   });

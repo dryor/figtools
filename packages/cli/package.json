@@ -1,9 +1,22 @@
 {
   "name": "@figtools/cli",
   "version": "0.1.0",
-  "description": "Resuelve una o varias URLs de Figma desde la línea de comandos y escribe el resultado en json o en un árbol de markdown navegable pensado para que un LLM lo use como fuente de datos.",
+  "description": "Resolves one or more Figma URLs from the command line and writes the result as JSON or as a navigable markdown tree meant to be used as a data source by an LLM.",
+  "keywords": ["figma", "figma-api", "cli", "scraper", "markdown", "llm"],
+  "homepage": "https://github.com/dryor/figtools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dryor/figtools.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/dryor/figtools/issues"
+  },
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "bin": {
     "figtools": "./dist/cli.js"
   },
@@ -13,6 +26,9 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@figtools/core": "workspace:*",

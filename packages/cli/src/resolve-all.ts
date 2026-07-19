@@ -26,7 +26,7 @@ export async function resolveAll(
       url,
       result: {
         ok: false,
-        error: { code: "AUTHENTICATION_FAILED" as const, message: "Error inesperado al resolver la URL" },
+        error: { code: "AUTHENTICATION_FAILED" as const, message: "Unexpected error while resolving the URL" },
       },
     };
   });

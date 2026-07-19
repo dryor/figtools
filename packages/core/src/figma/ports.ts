@@ -13,21 +13,22 @@ export interface InteractiveLogin {
   authenticate(): Promise<FigmaSession>;
 }
 
-// El gateway distingue "sesión expirada" de "no existe / sin acceso": son la
-// misma forma de fallo HTTP en Figma, pero el core necesita diferenciarlas
-// para saber si debe disparar un re-login solo o devolver un error al caller.
+// The gateway distinguishes "session expired" from "doesn't exist / no
+// access": they're the same kind of HTTP failure in Figma, but the core
+// needs to tell them apart to know whether to trigger a re-login on its
+// own or return an error to the caller.
 export type FigmaFetchResult<T> =
   | { status: "ok"; value: T }
   | { status: "not-found-or-no-access" }
   | { status: "session-expired" }
-  // El nodo existe y es accesible, pero Figma no le mostró a esta sesión
-  // ningún panel de propiedades legible con sus datos (ver
+  // The node exists and is accessible, but Figma didn't show this session
+  // any readable properties panel with its data (see
   // adr/ADR-panel-reader-bridge.md).
   | { status: "incomplete-node-data" };
 
 export interface FigmaGateway {
-  // El node-id solo tiene sentido dentro de un archivo: hace falta el
-  // fileKey también para poder navegar a la URL real del nodo.
+  // node-id only makes sense within a file: fileKey is also needed to be
+  // able to navigate to the node's real URL.
   fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
   fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
 }

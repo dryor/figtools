@@ -3,10 +3,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PlaywrightFigmaGateway } from "./playwright-figma-gateway";
 
-// Todavía no hay un fixture "golden" definido para comparar contra datos
-// reales, así que cada corrida deja el resultado completo en disco (después
-// de los asserts, para no ensuciar el resultado con un test ya fallido) para
-// poder inspeccionarlo a mano.
+// There's no "golden" fixture defined yet to compare against real data, so
+// each run leaves the full result on disk (after the asserts, so an already
+// failed test doesn't pollute the result) to inspect it by hand.
 const OUTPUT_DIR = join(process.cwd(), "tmp", "e2e-output");
 
 function writeResult(fileName: string, result: unknown): void {
@@ -14,31 +13,30 @@ function writeResult(fileName: string, result: unknown): void {
   writeFileSync(join(OUTPUT_DIR, fileName), JSON.stringify(result, null, 2));
 }
 
-// Requiere una sesión real (FIGMA_TEST_CREDENTIAL, obtenida corriendo el
-// test de PlaywrightLogin una vez) y un archivo de Figma conocido
-// (FIGMA_TEST_FILE_KEY / FIGMA_TEST_NODE_ID) para comparar contra datos
-// reales. No hay un fixture "golden" definido todavía — eso es un
-// prerequisito pendiente, no algo que este test pueda resolver solo.
+// Requires a real session (FIGMA_TEST_CREDENTIAL, obtained by running the
+// PlaywrightLogin test once) and a known Figma file (FIGMA_TEST_FILE_KEY /
+// FIGMA_TEST_NODE_ID) to compare against real data. There's no "golden"
+// fixture defined yet — that's a pending prerequisite, not something this
+// test can resolve on its own.
 const RUN_EDIT_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_FILE_KEY);
 
-// Segundo archivo, donde la sesión de FIGMA_TEST_CREDENTIAL tiene acceso de
-// solo view (no editor), en una organización que habilita el panel de
-// inspección para viewers. Confirmado corriendo contra una sesión real (ver
-// adr/ADR-panel-reader-bridge.md): en ese caso Figma muestra un panel de
-// propiedades completamente distinto ("modo inspección",
-// inspectionPropertyRow) del panel de edición
-// (x-y-inputs-row/transform-width/consumed-style-panel).
+// Second file, where the FIGMA_TEST_CREDENTIAL session has view-only access
+// (not editor), in an organization that enables the inspect panel for
+// viewers. Confirmed by running against a real session (see
+// adr/ADR-panel-reader-bridge.md): in that case Figma shows a completely
+// different properties panel ("inspection mode", inspectionPropertyRow)
+// than the edit panel (x-y-inputs-row/transform-width/consumed-style-panel).
 const RUN_VIEW_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_VIEW_FILE_KEY);
 
-// Tercer archivo, todavía sin confirmar contra una sesión real: un usuario
-// con permiso de solo view en un archivo cuya organización NO habilita el
-// panel de inspección (ver spec: "Obtener un nodo puntual sin panel de
-// datos disponible"). Queda como skip hasta encontrar un archivo real de
-// ese tipo para validarlo — no se puede forzar ese estado desde afuera.
+// Third file, still not confirmed against a real session: a user with
+// view-only permission on a file whose organization does NOT enable the
+// inspect panel (see spec: "Get a specific node with no data panel
+// available"). Stays skipped until a real file of that kind is found to
+// validate it — that state can't be forced from the outside.
 const RUN_NO_PANEL_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_NO_PANEL_FILE_KEY);
 
-describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma (browser real, modo edición)", () => {
-  it("trae datos reales del nodo, no un stub", async () => {
+describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get a specific node from a Figma design (real browser, edit mode)", () => {
+  it("fetches real node data, not a stub", async () => {
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
@@ -48,7 +46,7 @@ describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener un nodo punt
     if (result.status === "ok") {
       expect(result.value.id).toBe(process.env.FIGMA_TEST_NODE_ID);
       expect(result.value.type).toBeTruthy();
-      // El panel de edición sí expone position/size como inputs directos.
+      // The edit panel does expose position/size as direct inputs.
       expect(result.value.position.x).not.toBeNull();
       expect(result.value.size.width).not.toBeNull();
     }
@@ -57,8 +55,8 @@ describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener un nodo punt
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener los nodos de la página por defecto de un diseño de Figma (browser real, modo edición)", () => {
-  it("trae la página por defecto con al menos un nodo de nivel superior", async () => {
+describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get the nodes of the default page in a Figma design (real browser, edit mode)", () => {
+  it("fetches the default page with at least one top-level node", async () => {
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
@@ -74,8 +72,8 @@ describe.skipIf(!RUN_EDIT_MODE)("obtener_informacion_figma: Obtener los nodos de
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma con permiso de solo lectura (browser real, modo inspección)", () => {
-  it("trae datos reales del nodo vía InspectionPanelReader, no solo name/type/visible", async () => {
+describe.skipIf(!RUN_VIEW_MODE)("get_figma_information: Get a specific node from a Figma design with read-only permission (real browser, inspection mode)", () => {
+  it("fetches real node data via InspectionPanelReader, not just name/type/visible", async () => {
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
@@ -85,11 +83,11 @@ describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo punt
     if (result.status === "ok") {
       expect(result.value.id).toBe(process.env.FIGMA_TEST_VIEW_NODE_ID);
       expect(result.value.type).toBeTruthy();
-      // El panel de inspección expone Width/Height como texto plano, incluso
-      // para nodos con auto-layout Fill/Hug (a diferencia del panel de
-      // edición). Confirmado corriendo contra una sesión real, en varios
-      // nodos (raíz, anidado, instancia, forma libre): nunca expone X/Y —
-      // position queda siempre null en este modo.
+      // The inspection panel exposes Width/Height as plain text, even for
+      // nodes with auto-layout Fill/Hug (unlike the edit panel). Confirmed
+      // by running against a real session, across several nodes (root,
+      // nested, instance, free shape): it never exposes X/Y — position
+      // stays null in this mode always.
       expect(result.value.position.x).toBeNull();
       expect(result.value.size.width).not.toBeNull();
     }
@@ -98,8 +96,8 @@ describe.skipIf(!RUN_VIEW_MODE)("obtener_informacion_figma: Obtener un nodo punt
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_NO_PANEL_MODE)("obtener_informacion_figma: Obtener un nodo puntual sin panel de datos disponible (browser real)", () => {
-  it("devuelve status incomplete-node-data sin recorrer el árbol", async () => {
+describe.skipIf(!RUN_NO_PANEL_MODE)("get_figma_information: Get a specific node with no data panel available (real browser)", () => {
+  it("returns incomplete-node-data status without walking the tree", async () => {
     const gateway = new PlaywrightFigmaGateway();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 

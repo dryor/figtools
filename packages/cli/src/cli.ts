@@ -61,7 +61,7 @@ export function parseArgs(argv: string[]): ParseArgsResult {
   if (urls.length === 0) {
     return {
       ok: false,
-      error: { code: "VALIDATION_NO_URLS", message: "Se requiere al menos una URL de Figma" },
+      error: { code: "VALIDATION_NO_URLS", message: "At least one Figma URL is required" },
     };
   }
 
@@ -109,20 +109,20 @@ async function main(argv: string[]): Promise<void> {
   if (command === "login") {
     const result = await core.reauthenticate();
     if (!result.ok) {
-      process.stderr.write(`Error de autenticación: ${result.error.message}\n`);
+      process.stderr.write(`Authentication error: ${result.error.message}\n`);
       process.exit(1);
     }
-    process.stderr.write("Sesión iniciada correctamente.\n");
+    process.stderr.write("Logged in successfully.\n");
     process.exit(0);
   }
 
   const outputTarget = decideOutputTarget(outputPath, format);
   if (outputTarget.kind === "unsupported-extension") {
-    process.stderr.write(`Error: extensión no soportada "${outputTarget.extension}"\n`);
+    process.stderr.write(`Error: unsupported extension "${outputTarget.extension}"\n`);
     process.exit(1);
   }
 
-  if (!quiet) process.stderr.write(`Resolviendo ${urls.length} URL(s)...\n`);
+  if (!quiet) process.stderr.write(`Resolving ${urls.length} URL(s)...\n`);
 
   const resolutions = await resolveAll(core, urls);
 
@@ -151,7 +151,7 @@ async function main(argv: string[]): Promise<void> {
 
   const failures = resolutions.filter((r) => !r.result.ok);
   if (failures.length > 0) {
-    process.stderr.write("\nURLs con error:\n");
+    process.stderr.write("\nURLs with errors:\n");
     for (const { url, result } of failures) {
       if (!result.ok) {
         process.stderr.write(`  ${url}: ${result.error.code} — ${result.error.message}\n`);

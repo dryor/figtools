@@ -31,7 +31,7 @@ function createFakeCore(overrides: Partial<FigmaScraperCore> = {}): FigmaScraper
 }
 
 describe("resolveAll", () => {
-  it("asegura la sesión antes de resolver cualquier URL", async () => {
+  it("secures the session before resolving any URL", async () => {
     const core = createFakeCore();
 
     await resolveAll(core, ["https://www.figma.com/design/ABC"]);
@@ -39,7 +39,7 @@ describe("resolveAll", () => {
     expect(core.ensureSession).toHaveBeenCalledTimes(1);
   });
 
-  it("asegura la sesión exactamente una vez sin importar cuántas URLs se resuelvan", async () => {
+  it("secures the session exactly once regardless of how many URLs are resolved", async () => {
     const core = createFakeCore();
     const urls = [
       "https://www.figma.com/design/AAA",
@@ -53,7 +53,7 @@ describe("resolveAll", () => {
     expect(core.resolveUrl).toHaveBeenCalledTimes(3);
   });
 
-  it("devuelve el resultado de cada URL emparejado con su URL de origen", async () => {
+  it("returns each URL's result paired with its source URL", async () => {
     const core = createFakeCore();
     const urls = ["https://www.figma.com/design/AAA", "https://www.figma.com/design/BBB"];
 
@@ -64,7 +64,7 @@ describe("resolveAll", () => {
     expect(resolutions[1].url).toBe(urls[1]);
   });
 
-  it("todas las URLs resuelven correctamente cuando el core no falla", async () => {
+  it("all URLs resolve successfully when the core doesn't fail", async () => {
     const core = createFakeCore();
     const urls = ["https://www.figma.com/design/AAA", "https://www.figma.com/design/BBB"];
 
@@ -73,8 +73,8 @@ describe("resolveAll", () => {
     expect(resolutions.every((r) => r.result.ok)).toBe(true);
   });
 
-  it("el fallo de una URL no impide obtener el resultado de las demás", async () => {
-    const failingError: FigmaScraperError = { code: "NOT_FOUND_OR_NO_ACCESS", message: "no existe" };
+  it("one URL failing doesn't prevent getting the others' results", async () => {
+    const failingError: FigmaScraperError = { code: "NOT_FOUND_OR_NO_ACCESS", message: "doesn't exist" };
     const core = createFakeCore({
       resolveUrl: vi.fn(async (url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>> => {
         if (url.includes("BBB")) return { ok: false, error: failingError };
@@ -95,8 +95,8 @@ describe("resolveAll", () => {
     expect(ccc.result.ok).toBe(true);
   });
 
-  it("reporta el código y mensaje de error de la URL que falló", async () => {
-    const failingError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "sesión inválida" };
+  it("reports the code and error message of the URL that failed", async () => {
+    const failingError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "invalid session" };
     const core = createFakeCore({
       resolveUrl: vi.fn(async (): Promise<Result<FigmaScrapeResult, FigmaScraperError>> => ({
         ok: false,
@@ -112,8 +112,8 @@ describe("resolveAll", () => {
     }
   });
 
-  it("no llama a resolveUrl para ninguna URL si ensureSession falla", async () => {
-    const sessionError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "no se pudo iniciar sesión" };
+  it("doesn't call resolveUrl for any URL if ensureSession fails", async () => {
+    const sessionError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "couldn't log in" };
     const core = createFakeCore({
       ensureSession: vi.fn(async (): Promise<Result<FigmaSession, FigmaScraperError>> => ({
         ok: false,
@@ -126,8 +126,8 @@ describe("resolveAll", () => {
     expect(core.resolveUrl).not.toHaveBeenCalled();
   });
 
-  it("marca todas las URLs con el error de sesión si ensureSession falla", async () => {
-    const sessionError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "no se pudo iniciar sesión" };
+  it("marks all URLs with the session error if ensureSession fails", async () => {
+    const sessionError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "couldn't log in" };
     const core = createFakeCore({
       ensureSession: vi.fn(async (): Promise<Result<FigmaSession, FigmaScraperError>> => ({
         ok: false,

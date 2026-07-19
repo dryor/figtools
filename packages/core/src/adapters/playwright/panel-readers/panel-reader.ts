@@ -1,9 +1,9 @@
 import type { Locator } from "playwright";
 import type { CommonStyles, TypographyStyles } from "../../../figma/model";
 
-// Cada método recibe la fila del layers panel y/o el panel de propiedades ya
-// seleccionados; el PanelReader no navega ni hace click, solo lee. Ver
-// adr/ADR-panel-reader-bridge.md.
+// Each method receives the already-selected layers panel row and/or
+// properties panel; the PanelReader doesn't navigate or click, it only
+// reads. See adr/ADR-panel-reader-bridge.md.
 export interface PanelReader {
   readName(row: Locator): Promise<string>;
   readType(row: Locator): Promise<string>;
@@ -13,6 +13,7 @@ export interface PanelReader {
   readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }>;
 }
 
-// "none": ni el panel de edición ni el de inspección quedaron presentes en
-// el DOM tras cargar la página — no hay ningún PanelReader para ese caso.
+// "none": neither the edit panel nor the inspection panel ended up
+// present in the DOM after loading the page — there's no PanelReader for
+// that case.
 export type PanelMode = "edit" | "inspection" | "none";

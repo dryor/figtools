@@ -1,0 +1,32 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # cli imports core via workspace:*, which resolves to core's dist/
+      # (main/exports in its package.json) — without building first, cli's
+      # tests fail to resolve @figtools/core in a clean checkout.
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test

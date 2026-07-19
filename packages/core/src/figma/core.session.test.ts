@@ -11,8 +11,8 @@ const rawNode: RawFigmaNode = {
   visible: true, styles: {}, image: null, children: [],
 };
 
-describe("gestionar_sesion_figma: Iniciar sesión de forma interactiva sin sesión previa", () => {
-  it("dispara el login, guarda la sesión, y completa la solicitud original", async () => {
+describe("manage_figma_session: Log in interactively with no previous session", () => {
+  it("triggers the login, saves the session, and completes the original request", async () => {
     const sessionStore = createFakeSessionStore(null);
     const interactiveLogin = createFakeInteractiveLogin(VALID_SESSION);
     const gateway = createFakeGateway({ fetchNode: () => ({ status: "ok", value: rawNode }) });
@@ -26,8 +26,8 @@ describe("gestionar_sesion_figma: Iniciar sesión de forma interactiva sin sesi�
   });
 });
 
-describe("gestionar_sesion_figma: Reutilizar una sesión existente", () => {
-  it("no dispara login si ya hay una sesión válida guardada", async () => {
+describe("manage_figma_session: Reuse an existing session", () => {
+  it("doesn't trigger login if a valid session is already saved", async () => {
     const sessionStore = createFakeSessionStore(VALID_SESSION);
     const interactiveLogin = createFakeInteractiveLogin(VALID_SESSION);
     const gateway = createFakeGateway({ fetchNode: () => ({ status: "ok", value: rawNode }) });
@@ -39,8 +39,8 @@ describe("gestionar_sesion_figma: Reutilizar una sesión existente", () => {
   });
 });
 
-describe("gestionar_sesion_figma: Iniciar sesión de nuevo aunque la sesión actual siga siendo válida", () => {
-  it("reautentica, guarda la sesión nueva vía sessionStore, y la devuelve", async () => {
+describe("manage_figma_session: Log in again even though the current session is still valid", () => {
+  it("reauthenticates, saves the new session via sessionStore, and returns it", async () => {
     const NEW_SESSION = { credential: "new-cookie-jar" };
     const sessionStore = createFakeSessionStore(VALID_SESSION);
     const interactiveLogin = createFakeInteractiveLogin(NEW_SESSION);
@@ -55,7 +55,7 @@ describe("gestionar_sesion_figma: Iniciar sesión de nuevo aunque la sesión act
   });
 });
 
-describe("gestionar_sesion_figma: La sesión expira durante una solicitud", () => {
+describe("manage_figma_session: The session expires during a request", () => {
   it("re-loguea y reintenta, devolviendo el resultado original en vez de un error", async () => {
     const NEW_SESSION = { credential: "renewed" };
     const sessionStore = createFakeSessionStore(VALID_SESSION);

@@ -3,12 +3,12 @@ import type { CommonStyles, TypographyStyles } from "../../../figma/model";
 import type { PanelReader } from "./panel-reader";
 import { LayerRowPanelReader } from "./layer-row-panel-reader";
 
-// Confirmado corriendo contra una sesión real (archivo de solo view, ver
-// adr/ADR-panel-reader-bridge.md): el panel de inspección expone pares
-// nombre-valor uniformes bajo el mismo par de testids, sin importar la
-// sección (Layout, Typography, Colors...) — a diferencia del panel de
-// edición, no hace falta distinguir por sección para leer cada campo, solo
-// por el texto del nombre de la propiedad.
+// Confirmed by running against a real session (view-only file, see
+// adr/ADR-panel-reader-bridge.md): the inspection panel exposes uniform
+// name-value pairs under the same pair of testids, regardless of the
+// section (Layout, Typography, Colors...) — unlike the edit panel, there's
+// no need to distinguish by section to read each field, only by the
+// property name's text.
 const SELECTORS = {
   propertyRow: '[data-testid="inspectionPropertyRow"]',
   propertyName: '[data-testid="inspectionPropertyName"]',
@@ -17,11 +17,11 @@ const SELECTORS = {
 };
 
 export class InspectionPanelReader extends LayerRowPanelReader implements PanelReader {
-  // Confirmado corriendo contra una sesión real, en nodos de nivel raíz,
-  // anidados con auto-layout, instancias y formas libres (rectángulo): el
-  // panel de inspección no expone X/Y en ningún caso probado — solo
-  // Width/Height. Siempre null hasta encontrar un nodo real donde sí
-  // aparezca.
+  // Confirmed by running against a real session, on root-level nodes,
+  // nested ones with auto-layout, instances, and free shapes (rectangle):
+  // the inspection panel never exposes X/Y in any tested case — only
+  // Width/Height. Always null until a real node is found where it does
+  // appear.
   async readPosition(_panel: Locator): Promise<{ x: number | null; y: number | null }> {
     return { x: null, y: null };
   }
@@ -34,9 +34,9 @@ export class InspectionPanelReader extends LayerRowPanelReader implements PanelR
     };
   }
 
-  // Font da un nombre de variable/token (ej. "font/family/subtitle"), no un
-  // nombre de fuente literal — es el único dato que la UI expone para ese
-  // campo en este modo.
+  // Font gives a variable/token name (e.g. "font/family/subtitle"), not a
+  // literal font name — it's the only data the UI exposes for that field
+  // in this mode.
   async readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }> {
     const properties = await this.readProperties(panel);
     const styles: CommonStyles & { typography?: TypographyStyles } = {};
@@ -87,8 +87,8 @@ export class InspectionPanelReader extends LayerRowPanelReader implements PanelR
   }
 }
 
-// Cubre "342px", "Fixed (1,440px)" y "Hug (1,153px)" — el primer número que
-// aparece en el texto es siempre el valor resuelto en píxeles.
+// Covers "342px", "Fixed (1,440px)", and "Hug (1,153px)" — the first
+// number that appears in the text is always the resolved value in pixels.
 function parseFirstNumber(text: string | undefined): number | null {
   if (!text) return null;
   const match = text.replace(/,/g, "").match(/-?\d+(\.\d+)?/);

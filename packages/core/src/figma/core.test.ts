@@ -35,8 +35,8 @@ function rawPage(overrides: Partial<RawFigmaNode> = {}): RawFigmaNode {
   };
 }
 
-describe("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Figma", () => {
-  it("devuelve el nodo con tipo, posición, tamaño, estilos, imagen y jerarquía de hijos", async () => {
+describe("get_figma_information: Get a specific node from a Figma design", () => {
+  it("returns the node with type, position, size, styles, image, and children hierarchy", async () => {
     const raw = rawElement({ children: [rawElement({ id: "1:24", name: "Label", type: "TEXT" })] });
     const { core } = makeCore({
       gateway: createFakeGateway({ fetchNode: () => ({ status: "ok", value: raw }) }),
@@ -55,8 +55,8 @@ describe("obtener_informacion_figma: Obtener un nodo puntual de un diseño de Fi
   });
 });
 
-describe("obtener_informacion_figma: Obtener los nodos de una página de un diseño de Figma", () => {
-  it("cuando el node-id apunta a un CANVAS, devuelve una página con sus nodos de nivel superior", async () => {
+describe("get_figma_information: Get the nodes of a page in a Figma design", () => {
+  it("when node-id points to a CANVAS, returns a page with its top-level nodes", async () => {
     const raw = rawPage();
     const { core } = makeCore({
       gateway: createFakeGateway({ fetchNode: () => ({ status: "ok", value: raw }) }),
@@ -73,8 +73,8 @@ describe("obtener_informacion_figma: Obtener los nodos de una página de un dise
   });
 });
 
-describe("obtener_informacion_figma: Obtener los nodos de la página por defecto de un diseño de Figma", () => {
-  it("sin node-id en la URL, pide la página por defecto al gateway usando el fileKey", async () => {
+describe("get_figma_information: Get the nodes of the default page in a Figma design", () => {
+  it("with no node-id in the URL, requests the default page from the gateway using the fileKey", async () => {
     const raw = rawPage();
     const fetchDefaultPage = vi.fn(() => ({ status: "ok" as const, value: raw }));
     const { core } = makeCore({
@@ -90,7 +90,7 @@ describe("obtener_informacion_figma: Obtener los nodos de la página por defecto
   });
 });
 
-describe("obtener_informacion_figma: Nodo o archivo inexistente o sin acceso", () => {
+describe("get_figma_information: Nonexistent or inaccessible node or file", () => {
   it("devuelve un error sin datos parciales", async () => {
     const { core } = makeCore({
       gateway: createFakeGateway({ fetchNode: () => ({ status: "not-found-or-no-access" }) }),
@@ -105,8 +105,8 @@ describe("obtener_informacion_figma: Nodo o archivo inexistente o sin acceso", (
   });
 });
 
-describe("obtener_informacion_figma: Rechazar una URL vacía", () => {
-  it("devuelve error de validación sin llamar al gateway", async () => {
+describe("get_figma_information: Reject an empty URL", () => {
+  it("returns a validation error without calling the gateway", async () => {
     const fetchNode = vi.fn();
     const fetchDefaultPage = vi.fn();
     const { core } = makeCore({ gateway: createFakeGateway({ fetchNode, fetchDefaultPage }) });
@@ -120,8 +120,8 @@ describe("obtener_informacion_figma: Rechazar una URL vacía", () => {
   });
 });
 
-describe("obtener_informacion_figma: Rechazar una URL que no es de Figma", () => {
-  it("devuelve error de validación sin llamar al gateway", async () => {
+describe("get_figma_information: Reject a URL that isn't from Figma", () => {
+  it("returns a validation error without calling the gateway", async () => {
     const { core } = makeCore();
 
     const result = await core.resolveUrl("https://www.google.com");
