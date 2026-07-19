@@ -22,5 +22,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      # cli imports core via workspace:*, which resolves to core's dist/
+      # (main/exports in its package.json) — without building first, cli's
+      # tests fail to resolve @figtools/core in a clean checkout.
+      - name: Build
+        run: pnpm build
+
       - name: Test
         run: pnpm test
