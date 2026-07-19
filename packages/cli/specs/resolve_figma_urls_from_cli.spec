@@ -124,3 +124,25 @@
 * The user runs the CLI with an empty URL or one that doesn't belong to Figma, among the arguments
 * The system reports that specific URL's validation error in the final stderr summary
 * The system continues processing the rest of the provided URLs
+
+## Print help text with --help
+* The user runs the CLI with --help, with or without other arguments
+* The system prints usage information listing the available commands and flags
+* The process exits with exit code 0
+* The system doesn't attempt to resolve any URL or start any login process
+
+## Print the version with --version
+* The user runs the CLI with --version
+* The system prints the CLI's version number
+* The process exits with exit code 0
+
+## Reject an invalid --format value
+* The user runs the CLI with --format set to a value other than json or markdown
+* The system returns an error naming the allowed values, instead of silently defaulting to json
+* The process exits with exit code 1
+* The system doesn't attempt to resolve any URL
+
+## Reject an unknown flag
+* The user runs the CLI with a flag that isn't recognized (--format, --output, --quiet, --help, --version)
+* The system returns an error naming the unrecognized flag, instead of silently ignoring it
+* The process exits with exit code 1

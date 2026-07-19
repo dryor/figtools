@@ -1,5 +1,6 @@
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Command, CommanderError, InvalidArgumentError } from "commander";
 import {
   createFigmaScraperCore,
   CookieSessionStore,
@@ -9,6 +10,7 @@ import {
 import { resolveAll } from "./resolve-all";
 import { writeAsJson } from "./output/json-writer";
 import { writeAsMarkdownTree } from "./output/markdown-writer";
+import packageJson from "../package.json" with { type: "json" };
 
 export type OutputFormat = "json" | "markdown";
 
@@ -21,13 +23,20 @@ export interface ParsedArgs {
 }
 
 type ParseArgsError = {
-  code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION";
+  code: "VALIDATION_NO_URLS" | "VALIDATION_UNSUPPORTED_EXTENSION" | "COMMANDER_ERROR";
   message: string;
 };
 
+// help/version end parsing without being a validation error: commander
+// already generated the text (help or version number) and expects the
+// caller to print it and exit with code 0, instead of treating it as a
+// failure.
+type ParseArgsInfo = { code: "HELP_DISPLAYED" | "VERSION_DISPLAYED"; output: string };
+
 export type ParseArgsResult =
   | { ok: true; value: ParsedArgs }
-  | { ok: false; error: ParseArgsError };
+  | { ok: false; error: ParseArgsError }
+  | { ok: false; info: ParseArgsInfo };
 
 export type OutputTarget =
   | { kind: "stdout" }
@@ -35,37 +44,101 @@ export type OutputTarget =
   | { kind: "directory"; path: string }
   | { kind: "unsupported-extension"; extension: string };
 
+interface ResolveOpts {
+  format: OutputFormat;
+  output?: string;
+  quiet: boolean;
+}
+
+// login is the only named subcommand; resolve is marked as the
+// "default command" (isDefault: true) so `figtools <urls...>` keeps
+// working without having to write `figtools resolve <urls...>` —
+// commander dispatches to resolve automatically whenever the first
+// argument doesn't match a known subcommand name (see command.js:
+// _defaultCommandName).
+function createProgram(): { program: Command; getParsed: () => ParsedArgs | undefined; getOutput: () => string } {
+  let output = "";
+  let parsed: ParsedArgs | undefined;
+
+  const program = new Command()
+    .name("figtools")
+    .description(packageJson.description)
+    .version(packageJson.version, "-v, --version")
+    .exitOverride()
+    .configureOutput({
+      writeOut: (str) => {
+        output += str;
+      },
+      writeErr: (str) => {
+        output += str;
+      },
+    });
+
+  const resolveCommand = program
+    .command("resolve", { isDefault: true })
+    .description("Resolve one or more Figma URLs and write the result")
+    .argument("<urls...>", "One or more Figma URLs to resolve")
+    .option("--format <format>", "Output format (json or markdown)", parseFormat, "json")
+    .option("--output <path>", "File or directory to write the result to")
+    .option("--quiet", "Suppress progress messages on stderr", false)
+    .action((urls: string[], opts: ResolveOpts) => {
+      parsed = { urls, format: opts.format, outputPath: opts.output, quiet: opts.quiet };
+    });
+  resolveCommand.exitOverride();
+
+  const loginCommand = program
+    .command("login")
+    .description("Force a new interactive login, discarding any saved session")
+    .action(() => {
+      parsed = { command: "login", urls: [], format: "json", quiet: false };
+    });
+  loginCommand.exitOverride();
+
+  return { program, getParsed: () => parsed, getOutput: () => output };
+}
+
+function parseFormat(value: string): OutputFormat {
+  if (value !== "json" && value !== "markdown") {
+    throw new InvalidArgumentError("Allowed choices are json, markdown.");
+  }
+  return value;
+}
+
 export function parseArgs(argv: string[]): ParseArgsResult {
-  if (argv[0] === "login") {
-    return { ok: true, value: { command: "login", urls: [], format: "json", quiet: false } };
-  }
+  const { program, getParsed, getOutput } = createProgram();
 
-  let format: OutputFormat = "json";
-  let outputPath: string | undefined;
-  let quiet = false;
-  const urls: string[] = [];
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--format") {
-      format = argv[++i] as OutputFormat;
-    } else if (arg === "--output") {
-      outputPath = argv[++i];
-    } else if (arg === "--quiet") {
-      quiet = true;
-    } else if (!arg.startsWith("--")) {
-      urls.push(arg);
+  try {
+    program.parse(argv, { from: "user" });
+  } catch (err) {
+    if (err instanceof CommanderError) {
+      if (err.code === "commander.helpDisplayed") {
+        return { ok: false, info: { code: "HELP_DISPLAYED", output: getOutput() } };
+      }
+      if (err.code === "commander.version") {
+        return { ok: false, info: { code: "VERSION_DISPLAYED", output: getOutput() } };
+      }
+      if (err.code === "commander.missingArgument") {
+        return {
+          ok: false,
+          error: { code: "VALIDATION_NO_URLS", message: "At least one Figma URL is required" },
+        };
+      }
+      return { ok: false, error: { code: "COMMANDER_ERROR", message: getOutput() || err.message } };
     }
+    throw err;
   }
 
-  if (urls.length === 0) {
+  const value = getParsed();
+  if (!value) {
+    // Shouldn't be reachable in normal use: if parsing didn't fail and no
+    // action() ran, it means no argument at all was passed.
     return {
       ok: false,
       error: { code: "VALIDATION_NO_URLS", message: "At least one Figma URL is required" },
     };
   }
 
-  return { ok: true, value: { urls, format, outputPath, quiet } };
+  return { ok: true, value };
 }
 
 export function decideOutputTarget(
@@ -93,6 +166,10 @@ function extractFileKey(url: string): string {
 
 async function main(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv);
+  if (!parsed.ok && "info" in parsed) {
+    process.stdout.write(parsed.info.output);
+    process.exit(0);
+  }
   if (!parsed.ok) {
     process.stderr.write(`Error: ${parsed.error.message}\n`);
     process.exit(1);

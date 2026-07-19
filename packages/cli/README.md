@@ -72,10 +72,14 @@ Omits the `Resolving N URL(s)...` message on stderr — useful if you're capturi
 | `--format` | `json`, `markdown` | `json` | Output format |
 | `--output` | file or folder path | stdout (json) / `.` (markdown) | Where to write the result |
 | `--quiet` | — | `false` | Omits the progress message on stderr |
+| `--help`, `-h` | — | — | Prints usage information and exits |
+| `--version`, `-v` | — | — | Prints the CLI's version and exits |
 
 ## Troubleshooting
 
 - **`Error: unsupported extension "<ext>"`**: with `--format markdown`, `--output` is always treated as a folder. With `--format json`, only a path ending in `.json` or with no extension (treated as a folder) is accepted; any other extension fails explicitly.
+- **`--format` argument 'xml' is invalid. Allowed choices are json, markdown.**: an unsupported `--format` value is rejected explicitly instead of silently falling back to `json`.
+- **`error: unknown option '--foo'`**: an unrecognized flag is rejected explicitly instead of being silently ignored.
 - **The process exits with code `1` but printed results**: at least one of the URLs failed — check the `URLs with errors:` block at the end of stderr for each one's code (`FigmaScraperErrorCode`) and message. See the error table in the [`@figtools/core` README](../core#possible-errors).
 - **`figtools login` doesn't progress**: the Chromium window waits indefinitely for you to finish the manual login; confirm you reached `https://www.figma.com/files/...` before closing the window.
 

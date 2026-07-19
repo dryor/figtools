@@ -82,6 +82,53 @@ describe("parseArgs", () => {
       expect(result.error.code).toBe("VALIDATION_NO_URLS");
     }
   });
+
+  it("--help returns generated help text instead of an error", () => {
+    const result = parseArgs(["--help"]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && "info" in result) {
+      expect(result.info.code).toBe("HELP_DISPLAYED");
+      expect(result.info.output).toContain("Usage: figtools");
+    } else {
+      expect.fail("expected an info result with HELP_DISPLAYED");
+    }
+  });
+
+  it("--version returns the package version instead of an error", () => {
+    const result = parseArgs(["--version"]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && "info" in result) {
+      expect(result.info.code).toBe("VERSION_DISPLAYED");
+      expect(result.info.output.trim()).toBe("0.1.0");
+    } else {
+      expect.fail("expected an info result with VERSION_DISPLAYED");
+    }
+  });
+
+  it("rejects an invalid --format value instead of silently defaulting to json", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--format", "xml"]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && "error" in result) {
+      expect(result.error.code).toBe("COMMANDER_ERROR");
+      expect(result.error.message).toContain("json, markdown");
+    } else {
+      expect.fail("expected an error result for an invalid --format value");
+    }
+  });
+
+  it("rejects an unknown flag instead of silently ignoring it", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--unknown-flag"]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && "error" in result) {
+      expect(result.error.code).toBe("COMMANDER_ERROR");
+    } else {
+      expect.fail("expected an error result for an unknown flag");
+    }
+  });
 });
 
 describe("decideOutputTarget", () => {
