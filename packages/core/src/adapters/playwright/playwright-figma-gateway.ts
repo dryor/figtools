@@ -4,6 +4,7 @@ import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
 import { createPanelReader } from "./panel-readers/create-panel-reader";
+import { diffRowIds } from "./layer-snapshot-diff";
 
 // Selectors confirmed by running against a real figma.com session (see
 // .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, and FIGMA_TEST_VIEW_*
@@ -13,57 +14,6 @@ import { createPanelReader } from "./panel-readers/create-panel-reader";
 const SELECTORS = {
   layerRow: (nodeId: string) => `[data-testid="objects-panel"] [data-testid="${nodeId}-layers-panel-row"]`,
 };
-
-export interface LayerPanelRow {
-  testid: string;
-  indents: number;
-  y: number;
-}
-
-// The layers panel is virtualized: a collapsed node's children don't exist
-// in the DOM until it's expanded. There's no data-node-id or explicit
-// hierarchy in the markup — the only signal available is each row's
-// indentation level, read after expanding the parent.
-//
-// Indentation isn't always parentIndents + 1: confirmed by running against
-// a real session (see adr/ADR-pending-decisions.md), a `List Item`
-// (Instance) nests its children one level deeper, but `Pikachu` (also an
-// Instance, nested inside that List Item) reveals its own child (`image`)
-// at the SAME indentation level as itself, not one level deeper. Requiring
-// exactly `parentIndents + 1` made every Instance whose content doesn't
-// nest a level deeper come back with no children at all, silently
-// truncating the tree.
-//
-// The rule that holds for both observed cases: take whatever indentation
-// the first row after the parent has (whether that's parentIndents or
-// parentIndents + 1) as the children's level, and accept every contiguous
-// row at that same level as a child — stopping only once indentation drops
-// below the parent's (back up to a sibling or ancestor).
-//
-// Known limitation: when children sit at the SAME indentation as the
-// parent, a sibling of the parent immediately following the last real
-// child (also at parentIndents) is indistinguishable from one more child —
-// indentation alone can't tell them apart. Not resolvable without a real
-// parent/child signal in the DOM, which Figma doesn't expose.
-export function findChildIds(rows: LayerPanelRow[], parentTestId: string): string[] {
-  const sorted = [...rows].sort((a, b) => a.y - b.y);
-  const parentIndex = sorted.findIndex((r) => r.testid === `${parentTestId}-layers-panel-row`);
-  if (parentIndex === -1) return [];
-  const parentIndents = sorted[parentIndex].indents;
-
-  const nextRow = sorted[parentIndex + 1];
-  if (!nextRow || nextRow.indents < parentIndents) return [];
-  const childIndents = nextRow.indents;
-
-  const childIds: string[] = [];
-  for (let i = parentIndex + 1; i < sorted.length; i++) {
-    if (sorted[i].indents < parentIndents) break;
-    if (sorted[i].indents === childIndents) {
-      childIds.push(sorted[i].testid.replace(/-layers-panel-row$/, ""));
-    }
-  }
-  return childIds;
-}
 
 export class PlaywrightFigmaGateway implements FigmaGateway {
   async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
@@ -237,35 +187,31 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     };
   }
 
-  // The expand caret only becomes visible/clickable after hovering over
-  // the row (confirmed by running against a real session). Indentation
-  // parsing itself lives in findChildIds — see its comment for why it
-  // isn't a flat parentIndents + 1 check.
+  // The expand caret is only visible/clickable after hovering (confirmed
+  // against a real session). Children are identified by diffing which row
+  // IDs exist before vs. after expansion — see adr/ADR-layers-virtualization.md.
   private async expandAndListChildren(page: Page, nodeId: string): Promise<string[]> {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     await row.hover();
     const caret = row.locator('[data-testid="layers-panel-expand-caret"]');
     if ((await caret.count()) === 0) return [];
+
+    const before = await this.snapshotRowIds(page);
     await caret.click({ force: true });
     await page.waitForTimeout(300);
+    const after = await this.snapshotRowIds(page);
 
-    const rows = await page.evaluate((): LayerPanelRow[] => {
-      const objectsPanel = document.querySelector('[data-testid="objects-panel"]');
-      if (!objectsPanel) return [];
-      const wrappers = Array.from(objectsPanel.querySelectorAll('[style*="translate3d"]')).filter((w) =>
-        w.querySelector(':scope > [data-testid$="-layers-panel-row"]')
-      ) as HTMLElement[];
+    return diffRowIds(before, Array.from(after));
+  }
 
-      return wrappers.map((w) => {
-        const content = w.querySelector(':scope > [data-testid$="-layers-panel-row"]') as HTMLElement;
-        const testid = content.getAttribute("data-testid") ?? "";
-        const indents = content.querySelectorAll(".object_row--indent--ZzXY2").length;
-        const yMatch = w.style.transform.match(/translate3d\([^,]+,\s*([^,]+)/);
-        const y = yMatch ? parseFloat(yMatch[1]) : 0;
-        return { testid, indents, y };
-      });
+  private async snapshotRowIds(page: Page): Promise<Set<string>> {
+    const ids = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="objects-panel"]');
+      if (!panel) return [];
+      return Array.from(panel.querySelectorAll('[data-testid$="-layers-panel-row"]'))
+        .map((el) => el.getAttribute("data-testid")?.replace(/-layers-panel-row$/, "") ?? "")
+        .filter(Boolean);
     });
-
-    return findChildIds(rows, nodeId);
+    return new Set(ids);
   }
 }
