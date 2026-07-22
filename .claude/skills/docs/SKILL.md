@@ -1,32 +1,32 @@
 ---
 name: docs
-description: Ayuda a escribir o actualizar el README de un proyecto o módulo, aplicando el framework de "Docs for Developers" (Bhatti, Corleissen, Lambourne, Nunez, Waterhouse) — entendiendo primero quién lo va a leer y para qué, completando la plantilla de contenido estándar del libro, y pasando el borrador por sus 4 revisiones de edición antes de darlo por terminado. Usar SIEMPRE que el usuario pida escribir, actualizar o revisar un README, o mencione documentación técnica de un repositorio o módulo — incluso sin nombrar el comando.
+description: Helps write or update the README of a project or module, applying the "Docs for Developers" framework (Bhatti, Corleissen, Lambourne, Nunez, Waterhouse) — first understanding who will read it and for what purpose, completing the book's standard content template, and running the draft through its 4 editing reviews before considering it done. Use WHENEVER the user asks to write, update, or review a README, or mentions technical documentation for a repository or module — even without naming the command.
 ---
 
-# /docs — README y documentación técnica
+# /docs — README and technical documentation
 
-## Qué hace
-Ayuda a escribir o actualizar un README aplicando el proceso de *Docs for Developers*: primero identifica quién lo va a leer y qué necesita, después completa la plantilla estándar de contenido del libro, y por último pasa el borrador por las 4 revisiones de edición antes de darlo por terminado.
+## What it does
+Helps write or update a README applying the *Docs for Developers* process: first identifies who will read it and what they need, then completes the book's standard content template, and finally runs the draft through the 4 editing reviews before considering it done.
 
-## Por qué preguntar por el lector antes de escribir
-Un README escrito sin un lector concreto en mente tiende a mezclar audiencias — explica instalación a alguien que ya la hizo, u omite el "por qué" para quien recién llega. El libro llama a esto "the curse of knowledge" (Capítulo 1): quien escribe ya sabe demasiado del proyecto para notar qué le falta a quien no lo conoce. Preguntar el objetivo (¿evaluar si usar el proyecto?, ¿instalarlo por primera vez?, ¿contribuir código?) evita ese sesgo antes de que quede escrito.
+## Why ask about the reader before writing
+A README written without a concrete reader in mind tends to mix audiences — it explains installation to someone who already did it, or omits the "why" for someone just arriving. The book calls this "the curse of knowledge" (Chapter 1): whoever writes already knows too much about the project to notice what's missing for someone who doesn't know it. Asking the goal (evaluate whether to use the project? install it for the first time? contribute code?) avoids that bias before anything gets written.
 
 ## Input
-- Requerido: el código o proyecto a documentar (o el README existente, si se trata de una actualización).
-- Opcional: a quién está dirigido (usuario final, otro desarrollador del equipo, contribuidor externo) — si no es evidente por el contexto, pregúntalo antes de escribir.
+- Required: the code or project to document (or the existing README, if this is an update).
+- Optional: who it's aimed at (end user, another team developer, external contributor) — if not evident from context, ask before writing.
 
-## Proceso
-1. Pregunta el objetivo del README y quién lo va a leer, si no es evidente por el contexto.
-2. Completa la plantilla estándar del libro (Capítulo 2, "Planning your documentation"): resumen de alto nivel de qué hace el código y por qué existe, Installation, Examples, Troubleshooting, Changelog, Additional resources, License. No todas las secciones aplican siempre — usa el objetivo definido en el paso 1 para incluir solo las relevantes, no la plantilla completa por inercia.
-3. Al escribir la sección Examples, sigue los principios de código de muestra del Capítulo 5: explicado (no solo pegado sin contexto), conciso, claro, usable/extensible tal cual está, y confiable (que efectivamente corra si alguien lo copia).
-4. Escribe pensando en skimming (Capítulo 3): la información más importante primero, párrafos cortos, headers descriptivos, listas en vez de prosa densa donde aplique.
-5. Antes de entregar el borrador, pasa las 4 revisiones de edición del Capítulo 4: precisión técnica (¿los comandos/ejemplos funcionan tal cual están escritos?), completitud (¿falta algo que el lector objetivo necesita?), estructura (¿el orden sigue lo que el lector espera encontrar primero?), claridad y brevedad (¿se puede decir lo mismo con menos palabras?).
+## Process
+1. Ask the README's goal and who will read it, if not evident from context.
+2. Complete the book's standard template (Chapter 2, "Planning your documentation"): high-level summary of what the code does and why it exists, Installation, Examples, Troubleshooting, Changelog, Additional resources, License. Not all sections always apply — use the goal defined in step 1 to include only the relevant ones, not the full template by inertia.
+3. When writing the Examples section, follow the sample code principles from Chapter 5: explained (not just pasted without context), concise, clear, usable/extensible as-is, and reliable (actually runs if someone copies it).
+4. Write with skimming in mind (Chapter 3): most important information first, short paragraphs, descriptive headers, lists instead of dense prose where applicable.
+5. Before delivering the draft, run through the 4 editing reviews from Chapter 4: technical accuracy (do the commands/examples work exactly as written?), completeness (is anything the target reader needs missing?), structure (does the order match what the reader expects to find first?), clarity and brevity (can the same thing be said with fewer words?).
 
-## Formato de salida
+## Output format
 ```
-# [Nombre del proyecto]
+# [Project name]
 
-[Uno o dos párrafos: qué hace el código a alto nivel y por qué existe]
+[One or two paragraphs: what the code does at a high level and why it exists]
 
 ## Installation
 1. ...
@@ -47,26 +47,26 @@ Un README escrito sin un lector concreto en mente tiende a mezclar audiencias �
 ...
 ```
 
-## Ejemplo
-**Input:** "Necesito el README de figma-scrapper para alguien del equipo que lo va a levantar localmente por primera vez."
+## Example
+**Input:** "I need the README for figma-scrapper for a team member who will be running it locally for the first time."
 
-**Output (fragmento):**
+**Output (excerpt):**
 ```
 # figma-scrapper
 
-figma-scrapper conecta el panel de Figma con el backend del proyecto para
-leer capas de diseño y generar el modelo de datos correspondiente.
+figma-scrapper connects the Figma panel with the project's backend to
+read design layers and generate the corresponding data model.
 
 ## Installation
 1. `pnpm install`
-2. Copiar `.env.example` a `.env` y completar `FIGMA_TOKEN`
+2. Copy `.env.example` to `.env` and fill in `FIGMA_TOKEN`
 3. `pnpm dev`
 
 ## Examples
 ...
 ```
 
-## Referencias
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+## References
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
-- `.claude/knowledge/buenas-practicas-ingenieria/docsForDevelopersAnEngineerSFieldGuideToTechnical.txt` — Bhatti, Corleissen, Lambourne, Nunez, Waterhouse. Capítulo 1 (entender a la audiencia), Capítulo 2 (plantilla de README, p. 27), Capítulo 3 (redacción para skimming), Capítulo 4 (las 4 revisiones de edición), Capítulo 5 (principios de código de muestra).
+- `.claude/knowledge/buenas-practicas-ingenieria/docsForDevelopersAnEngineerSFieldGuideToTechnical.txt` — Bhatti, Corleissen, Lambourne, Nunez, Waterhouse. Chapter 1 (understanding the audience), Chapter 2 (README template, p. 27), Chapter 3 (writing for skimming), Chapter 4 (the 4 editing reviews), Chapter 5 (sample code principles).

@@ -1,21 +1,21 @@
 ---
 name: placeholder-implementation
-description: Crea las interfaces de servicio de una funcionalidad a partir de su ADR, junto con un stub/mock en memoria de esa interfaz para poder probarla de inmediato. Usar SIEMPRE que exista un ADR y haga falta la interfaz de un servicio antes de conectar un backend real, o el usuario mencione interfaz, servicio, mock o stub — incluso sin nombrar el comando.
+description: Creates the service interfaces for a feature from its ADR, along with an in-memory stub/mock of that interface to test it immediately. Use WHENEVER an ADR exists and a service interface is needed before connecting a real backend, or the user mentions interface, service, mock, or stub — even without naming the command.
 ---
 
-# /placeholder-implementation — Interfaces de servicio
+# /placeholder-implementation — Service interfaces
 
-## Qué hace
-Crea las interfaces de los servicios necesarios para una funcionalidad, consumiendo el `ADR.md`, y genera además un stub/mock en memoria de esa interfaz — para que el resto del sistema pueda desarrollarse y probarse sin depender todavía de un backend real.
+## What it does
+Creates the interfaces for the services needed by a feature, consuming the `ADR.md`, and also generates an in-memory stub/mock of that interface — so the rest of the system can be developed and tested without depending on a real backend yet.
 
-## Por qué un stub en memoria y no solo la interfaz
-Una interfaz sin implementación bloquea a cualquiera que dependa de ella hasta que exista el backend real. El stub en memoria permite avanzar en paralelo — vista, tests — sin esperar a `/backend-connection`.
+## Why an in-memory stub and not just the interface
+An interface without an implementation blocks anyone who depends on it until the real backend exists. The in-memory stub allows moving forward in parallel — view, tests — without waiting for `/backend-connection`.
 
 ## Input
-El `ADR.md` de la funcionalidad.
+The feature's `ADR.md`.
 
-## Referencias
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+## References
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
 - `.claude/knowledge/arquitectura-de-software/aPhilosophyOfSoftwareDesign2ndEdition.txt` — A Philosophy of Software Design, 2nd Edition (John K. Ousterhout)
 - `.claude/knowledge/arquitectura-de-software/accelerateTheScienceOfLeanSoftwareAndDevops.txt` — Accelerate : The Science of Lean Software and DevOps: (Forsgren  PhD, Nicole, Humble, Jez, Kim, Gene)
@@ -30,7 +30,7 @@ El `ADR.md` de la funcionalidad.
 - `.claude/knowledge/arquitectura-de-software/designingDataIntensiveApplications2ndEditionMartinKleppmann.txt` — Designing Data-Intensive Applications, 2nd Edition (Martin Kleppmann, Chris Riccomini) (z-library.sk, 1lib.sk, z-lib.sk)
 - `.claude/knowledge/arquitectura-de-software/designingDistributedSystemsPatternsAndParadigmsFor.txt` — Designing Distributed Systems: Patterns and Paradigms for (Brendan Burns)
 - `.claude/knowledge/arquitectura-de-software/designingEventDrivenSystems.txt` — Designing-Event-Driven-Systems
-- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O’Reilly Media (2019)
+- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O'Reilly Media (2019)
 - `.claude/knowledge/arquitectura-de-software/edgeComputingSimplifiedExploreAllAspectsOfEdgePerryLea2024.txt` — Edge-Computing-Simplified:-Explore-all-aspects-of-edge-Perry-Lea-2024-Packt-Publishing-Pvt-Ltd-97818
 - `.claude/knowledge/arquitectura-de-software/functionalDesignAndArchitectureMeapV10.txt` — Functional Design and Architecture (MEAP V10) (Alexander Granin)
 - `.claude/knowledge/arquitectura-de-software/fundamentalsOfSoftwareArchitecture2ndEditionAModern.txt` — Fundamentals of Software Architecture, 2nd Edition: A Modern (Mark Richards, Neal Ford)
@@ -59,16 +59,16 @@ El `ADR.md` de la funcionalidad.
 - `.claude/knowledge/arquitectura-de-software/theDesignOfWebApisSecondEdition.txt` — The Design of Web APIs, Second Edition (Arnaud Lauret)
 - `.claude/knowledge/arquitectura-de-software/webPerformanceInActionBuildingFasterWebPagesJeremyWagnerZ.txt` — Web Performance in Action Building Faster Web Pages (Jeremy Wagner) (Z-Library)
 
-- `.claude/knowledge/papers/applyingDesignByContract.txt` — Bertrand Meyer: para especificar precondiciones/postcondiciones de la interfaz antes de crear el stub.
+- `.claude/knowledge/papers/applyingDesignByContract.txt` — Bertrand Meyer: for specifying preconditions/postconditions of the interface before creating the stub.
 
-## Ejemplo
+## Example
 ```typescript
 interface PokemonSearchService {
   search(query: string): Promise<Pokemon[]>;
 }
 
 class InMemoryPokemonSearchService implements PokemonSearchService {
-  private cache: Pokemon[] = [/* datos de prueba */];
+  private cache: Pokemon[] = [/* test data */];
   async search(query: string) {
     return this.cache.filter(p => p.name.includes(query));
   }

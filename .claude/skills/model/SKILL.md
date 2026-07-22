@@ -1,49 +1,49 @@
 ---
 name: model
-description: Ayuda a decidir y documentar el enfoque de arquitectura y diseño de una funcionalidad ya especificada en un spec de Gauge — preguntando qué patrón de diseño usar, qué tan volátil es cada parte, y si conviene modelarla por dominio o por feature, y guardando la decisión junto con sus relaciones hacia otros documentos en un ADR. Usar SIEMPRE que exista un spec de aceptación y haga falta decidir el enfoque de arquitectura antes de implementar, o el usuario mencione ADR, decisiones de diseño, patrones a usar, o cómo modelar algo — incluso sin nombrar el comando.
+description: Helps decide and document the architecture and design approach for a feature already specified in a Gauge spec — asking what design pattern to use, how volatile each part is, and whether to model it by domain or by feature, saving the decision along with its relationships to other documents in an ADR. Use WHENEVER an acceptance spec exists and the architecture approach needs to be decided before implementing, or the user mentions ADR, design decisions, patterns to use, or how to model something — even without naming the command.
 ---
 
-# /model — Decisiones de arquitectura
+# /model — Architecture decisions
 
-## Qué hace
-Después de que existe un spec de Gauge (de `/bdd`), ayuda a decidir el enfoque de arquitectura preguntando qué patrón de diseño usar, qué tan volátil es cada parte, y si conviene modelar por dominio o por feature — siguiendo la lógica de descomposición por volatilidad de *Righting Software* (Juval Löwy) como referencia, no solo la intuición. Guarda la decisión, su razonamiento, y sus relaciones hacia otros documentos en un ADR.
+## What it does
+After a Gauge spec exists (from `/bdd`), it helps decide the architecture approach by asking what design pattern to use, how volatile each part is, and whether to model by domain or by feature — following the volatility decomposition logic from *Righting Software* (Juval Löwy) as a reference, not just intuition. Saves the decision, its reasoning, and its relationships to other documents in an ADR.
 
-## Por qué preguntar en vez de decidir solo
-Estas decisiones tienen consecuencias que duran más que la implementación inicial. Preguntar fuerza a hacer explícito el razonamiento detrás de la decisión, no solo la conclusión — así la persona puede estar en desacuerdo con el razonamiento y no solo con el resultado.
+## Why ask instead of decide alone
+These decisions have consequences that last longer than the initial implementation. Asking forces making the reasoning behind the decision explicit, not just the conclusion — so the person can disagree with the reasoning and not just with the result.
 
 ## Input
-El spec de Gauge que devuelve `/bdd`.
+The Gauge spec returned by `/bdd`.
 
-## Proceso
-1. Lee el spec completo.
-2. Pregunta qué patrón de diseño encaja — pero ofrece "ningún patrón GoF, funciones simples / un método de servicio parametrizado" como primera opción explícita junto a cualquier patrón GoF, no como algo que solo se acepta si el humano lo pide. No asumas Strategy/Factory por defecto para lógica con pocas variantes conocidas (ej. un filtro + un orden): eso es indirección sin problema concreto que resolver. Si no es obvio, ayuda a razonar entre opciones en vez de asumir una — por ejemplo, para variantes intercambiables de un mismo tipo de objeto que YA existen y deben poder swapearse en runtime, un Factory Method suele bastar; solo sube a Abstract Factory si hace falta una familia completa de objetos relacionados que deban mantenerse consistentes entre sí. No todas las features necesitan un patrón GoF — una técnica de temporización como debounce no es un patrón de diseño estructural/creacional, y "ningún patrón aplica aquí" es una respuesta válida y debe aceptarse como tal, sin forzar la conversación hacia un patrón que no corresponde.
-3. Pregunta qué partes son volátiles vs. estables, y si conviene organizar por dominio o por feature. No asumas "por feature" como default solo porque algo es teóricamente reusable — pregunta directamente si el humano prefiere cohesión de dominio (todo junto en el módulo del dominio) incluso cuando hoy solo hay un consumidor.
-4. Si el stack tiene primitivos nativos relevantes para el problema (ej. estado async en React 19: `use()`, `Suspense`, `useDeferredValue`, promesas como retorno de servicio en vez de callbacks/estado manual), pregunta explícitamente si se debe modelar apoyándose en ellos en vez de asumir un patrón genérico (`setTimeout`, hooks custom con `{data, isLoading, error}`). No fijes de entrada un mecanismo como `setTimeout` para debounce si el stack ya tiene una alternativa nativa más idiomática — pregunta primero.
-5. Nombra el ADR según el feature: `ADR-[nombre-del-feature].md`.
-6. Documenta la decisión, el razonamiento, y las relaciones DERIVES_FROM / RELATED_TO hacia otros documentos existentes.
-7. Genera las interfaces resultantes en dos formatos: Mermaid (diagrama) y TypeScript.
-8. Incluye un "Usage example" mostrando cómo se invoca la interfaz resultante en un caso concreto — no solo la firma de tipos.
+## Process
+1. Read the full spec.
+2. Ask what design pattern fits — but offer "no GoF pattern, simple functions / a parameterized service method" as the first explicit option alongside any GoF pattern, not as something only accepted if the human asks for it. Don't assume Strategy/Factory by default for logic with few known variants (e.g., a filter + a sort): that's indirection without a concrete problem to solve. If it's not obvious, help reason through the options instead of assuming one — for example, for interchangeable variants of the same type of object that ALREADY exist and must be swappable at runtime, a Factory Method usually suffices; only escalate to Abstract Factory if a complete family of related objects that must remain consistent with each other is needed. Not every feature needs a GoF pattern — a timing technique like debounce is not a structural/creational design pattern, and "no pattern applies here" is a valid answer and should be accepted as such, without forcing the conversation toward a pattern that doesn't fit.
+3. Ask which parts are volatile vs. stable, and whether to organize by domain or by feature. Don't assume "by feature" as default just because something is theoretically reusable — ask directly whether the human prefers domain cohesion (everything together in the domain module) even when today there is only one consumer.
+4. If the stack has native primitives relevant to the problem (e.g., async state in React 19: `use()`, `Suspense`, `useDeferredValue`, promises as service return values instead of callbacks/manual state), explicitly ask whether it should be modeled using them instead of assuming a generic pattern (`setTimeout`, custom hooks with `{data, isLoading, error}`). Don't fix a mechanism like `setTimeout` for debounce upfront if the stack already has a more idiomatic native alternative — ask first.
+5. Name the ADR after the feature: `ADR-[feature-name].md`.
+6. Document the decision, the reasoning, and the DERIVES_FROM / RELATED_TO relationships to other existing documents.
+7. Generate the resulting interfaces in two formats: Mermaid (diagram) and TypeScript.
+8. Include a "Usage example" showing how the resulting interface is invoked in a concrete case — not just the type signature.
 
-## Formato de salida
+## Output format
 ```
-# ADR-[nombre-del-feature]
+# ADR-[feature-name]
 
-## Contexto
-[resumen del problema]
+## Context
+[problem summary]
 
-## Decisión
-- Patrón: [cuál y por qué]
-- Volatilidad: [qué es volátil, qué es estable]
-- Relaciones: DERIVES_FROM [spec de origen]
+## Decision
+- Pattern: [which one and why]
+- Volatility: [what is volatile, what is stable]
+- Relationships: DERIVES_FROM [source spec]
 
 ## Interfaces (mermaid + ts)
 ...
 ```
 
-## Referencias
-Si hace falta profundizar más allá de la intuición al decidir patrón o volatilidad, consulta:
+## References
+If further depth is needed beyond intuition when deciding pattern or volatility, consult:
 
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
 - `.claude/knowledge/patrones-de-diseno/designPatternsElementsOfReusableObjectOriented.txt` — Design Patterns: Elements of Reusable Object-Oriented (Erich Gamma; Richard Helm, (Computer scientist); Ralph E)
 - `.claude/knowledge/patrones-de-diseno/diveIntoDesignPatterns.txt` — Dive Into Design Patterns (Alexander Shvets)
@@ -75,7 +75,7 @@ Si hace falta profundizar más allá de la intuición al decidir patrón o volat
 - `.claude/knowledge/arquitectura-de-software/designingDataIntensiveApplications2ndEditionMartinKleppmann.txt` — Designing Data-Intensive Applications, 2nd Edition (Martin Kleppmann, Chris Riccomini) (z-library.sk, 1lib.sk, z-lib.sk)
 - `.claude/knowledge/arquitectura-de-software/designingDistributedSystemsPatternsAndParadigmsFor.txt` — Designing Distributed Systems: Patterns and Paradigms for (Brendan Burns)
 - `.claude/knowledge/arquitectura-de-software/designingEventDrivenSystems.txt` — Designing-Event-Driven-Systems
-- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O’Reilly Media (2019)
+- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O'Reilly Media (2019)
 - `.claude/knowledge/arquitectura-de-software/edgeComputingSimplifiedExploreAllAspectsOfEdgePerryLea2024.txt` — Edge-Computing-Simplified:-Explore-all-aspects-of-edge-Perry-Lea-2024-Packt-Publishing-Pvt-Ltd-97818
 - `.claude/knowledge/arquitectura-de-software/functionalDesignAndArchitectureMeapV10.txt` — Functional Design and Architecture (MEAP V10) (Alexander Granin)
 - `.claude/knowledge/arquitectura-de-software/fundamentalsOfSoftwareArchitecture2ndEditionAModern.txt` — Fundamentals of Software Architecture, 2nd Edition: A Modern (Mark Richards, Neal Ford)
@@ -104,10 +104,10 @@ Si hace falta profundizar más allá de la intuición al decidir patrón o volat
 - `.claude/knowledge/arquitectura-de-software/theDesignOfWebApisSecondEdition.txt` — The Design of Web APIs, Second Edition (Arnaud Lauret)
 - `.claude/knowledge/arquitectura-de-software/webPerformanceInActionBuildingFasterWebPagesJeremyWagnerZ.txt` — Web Performance in Action Building Faster Web Pages (Jeremy Wagner) (Z-Library)
 
-- `.claude/knowledge/papers/criteriaForModularization.txt` — Parnas, "On the Criteria To Be Used in Decomposing Systems into Modules": el paper original sobre decomposición por volatilidad/information hiding.
-- `.claude/knowledge/papers/applyingDesignByContract.txt` — Bertrand Meyer: precondiciones/postcondiciones para especificar el comportamiento de una interfaz, útil al definir el contrato de un servicio.
-- `.claude/knowledge/lenguajes-programacion-js-ts/howToDesignProgramsAnIntroductionToProgrammingAnd.txt` — Felleisen et al.: recetas de diseño para funciones y datos, útil al nivel de diseño de interfaces/tipos, no solo de arquitectura.
-- `.claude/knowledge/lenguajes-programacion-js-ts/multithreadedJavascriptConcurrencyBeyondTheEventLoop.txt` — Hunter & English: Web Workers, worker_threads y SharedArrayBuffer como primitivos nativos de concurrencia — relevante en el paso 4 del Proceso, al decidir si una feature necesita paralelismo real en vez de asumir un patrón async genérico de un solo hilo.
+- `.claude/knowledge/papers/criteriaForModularization.txt` — Parnas, "On the Criteria To Be Used in Decomposing Systems into Modules": the original paper on decomposition by volatility/information hiding.
+- `.claude/knowledge/papers/applyingDesignByContract.txt` — Bertrand Meyer: preconditions/postconditions for specifying the behavior of an interface, useful when defining the contract of a service.
+- `.claude/knowledge/lenguajes-programacion-js-ts/howToDesignProgramsAnIntroductionToProgrammingAnd.txt` — Felleisen et al.: design recipes for functions and data, useful at the interface/types design level, not just architecture.
+- `.claude/knowledge/lenguajes-programacion-js-ts/multithreadedJavascriptConcurrencyBeyondTheEventLoop.txt` — Hunter & English: Web Workers, worker_threads and SharedArrayBuffer as native concurrency primitives — relevant in Process step 4, when deciding if a feature needs real parallelism instead of assuming a generic single-thread async pattern.
 
 - `.claude/knowledge/entrevistas-tecnicas-system-design/acingTheSystemDesignInterview.txt` — Acing the System Design Interview (Zhiyong Tan)
 - `.claude/knowledge/entrevistas-tecnicas-system-design/grokkingTheAdvancedSystemDesignInterviewEducativeIoZLibrary.txt` — Grokking the Advanced System Design Interview (educative.io) (Z-Library)
@@ -115,19 +115,19 @@ Si hace falta profundizar más allá de la intuición al decidir patrón o volat
 - `.claude/knowledge/entrevistas-tecnicas-system-design/systemDesignInterviewAnInsiderSGuideVolume1.txt` — System Design Interview – An Insider's Guide: Volume 1 (Alex Xu)
 - `.claude/knowledge/entrevistas-tecnicas-system-design/systemDesignInterviewAnInsiderSGuideVolume2.txt` — System Design Interview – An Insider's Guide: Volume 2 (Alex Xu, Sahn Lam)
 
-## Ejemplo
-**Input:** spec de Gauge "Buscar pokémon por nombre".
+## Example
+**Input:** Gauge spec "Search Pokémon by name".
 
 **Output:**
 ```
-# ADR-busqueda-de-pokemon
+# ADR-pokemon-search
 
-## Contexto
-Se necesita buscar pokémon por nombre con soporte de coincidencia parcial.
+## Context
+Need to search Pokémon by name with partial match support.
 
-## Decisión
-- Patrón: debounce de 300ms + filtrado client-side sobre lista cacheada
-- Volatilidad: la fuente de datos (PokeAPI) es estable; la lógica de búsqueda
-  es feature-oriented (reusable en otras pantallas), no domain-oriented
-- Relaciones: DERIVES_FROM gauge/buscar-pokemon.spec
+## Decision
+- Pattern: 300ms debounce + client-side filtering over cached list
+- Volatility: the data source (PokeAPI) is stable; the search logic
+  is feature-oriented (reusable in other screens), not domain-oriented
+- Relationships: DERIVES_FROM gauge/search-pokemon.spec
 ```

@@ -1,21 +1,21 @@
 ---
 name: backend-connection
-description: Crea la implementación concreta de un servicio para un backend específico, a partir de un contrato (OpenAPI u otro formato, no limitado a uno solo). Usar SIEMPRE que exista un contrato de API y haga falta conectar una interfaz ya definida a un backend real, o el usuario mencione contrato de API, adapter, o conectar un backend.
+description: Creates the concrete implementation of a service for a specific backend, from a contract (OpenAPI or other format, not limited to one). Use WHENEVER an API contract exists and an already-defined interface needs to be connected to a real backend, or the user mentions API contract, adapter, or connecting a backend.
 ---
 
-# /backend-connection — Conexión a un backend real
+# /backend-connection — Connection to a real backend
 
-## Qué hace
-Crea la implementación concreta de un servicio para un backend específico, a partir de un contrato — puede ser YAML (OpenAPI), pero no está limitado a ese formato; acepta cualquier tipo de contrato disponible.
+## What it does
+Creates the concrete implementation of a service for a specific backend, from a contract — it can be YAML (OpenAPI), but is not limited to that format; it accepts any type of available contract.
 
-## Diferencia con /placeholder-implementation
-`/placeholder-implementation` crea la interfaz y un stub en memoria (abstracto, sin depender de ningún backend). Este comando crea 1 implementación concreta, atada a un contrato de API específico — son complementarios, no redundantes.
+## Difference from /placeholder-implementation
+`/placeholder-implementation` creates the interface and an in-memory stub (abstract, not depending on any backend). This command creates 1 concrete implementation, tied to a specific API contract — they are complementary, not redundant.
 
 ## Input
-Un contrato de API.
+An API contract.
 
-## Referencias
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+## References
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
 - `.claude/knowledge/arquitectura-de-software/aPhilosophyOfSoftwareDesign2ndEdition.txt` — A Philosophy of Software Design, 2nd Edition (John K. Ousterhout)
 - `.claude/knowledge/arquitectura-de-software/accelerateTheScienceOfLeanSoftwareAndDevops.txt` — Accelerate : The Science of Lean Software and DevOps: (Forsgren  PhD, Nicole, Humble, Jez, Kim, Gene)
@@ -30,7 +30,7 @@ Un contrato de API.
 - `.claude/knowledge/arquitectura-de-software/designingDataIntensiveApplications2ndEditionMartinKleppmann.txt` — Designing Data-Intensive Applications, 2nd Edition (Martin Kleppmann, Chris Riccomini) (z-library.sk, 1lib.sk, z-lib.sk)
 - `.claude/knowledge/arquitectura-de-software/designingDistributedSystemsPatternsAndParadigmsFor.txt` — Designing Distributed Systems: Patterns and Paradigms for (Brendan Burns)
 - `.claude/knowledge/arquitectura-de-software/designingEventDrivenSystems.txt` — Designing-Event-Driven-Systems
-- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O’Reilly Media (2019)
+- `.claude/knowledge/arquitectura-de-software/ebenHewittSemanticSoftwareDesignANewTheoryAndPracticalGuide.txt` — Eben Hewitt - Semantic Software Design: A New Theory and Practical Guide for Modern Architects-O'Reilly Media (2019)
 - `.claude/knowledge/arquitectura-de-software/edgeComputingSimplifiedExploreAllAspectsOfEdgePerryLea2024.txt` — Edge-Computing-Simplified:-Explore-all-aspects-of-edge-Perry-Lea-2024-Packt-Publishing-Pvt-Ltd-97818
 - `.claude/knowledge/arquitectura-de-software/functionalDesignAndArchitectureMeapV10.txt` — Functional Design and Architecture (MEAP V10) (Alexander Granin)
 - `.claude/knowledge/arquitectura-de-software/fundamentalsOfSoftwareArchitecture2ndEditionAModern.txt` — Fundamentals of Software Architecture, 2nd Edition: A Modern (Mark Richards, Neal Ford)
@@ -65,7 +65,7 @@ Un contrato de API.
 - `.claude/knowledge/entrevistas-tecnicas-system-design/systemDesignInterviewAnInsiderSGuideVolume1.txt` — System Design Interview – An Insider's Guide: Volume 1 (Alex Xu)
 - `.claude/knowledge/entrevistas-tecnicas-system-design/systemDesignInterviewAnInsiderSGuideVolume2.txt` — System Design Interview – An Insider's Guide: Volume 2 (Alex Xu, Sahn Lam)
 
-## Ejemplo
+## Example
 ```typescript
 class PokeApiSearchAdapter implements PokemonSearchService {
   async search(query: string) {
