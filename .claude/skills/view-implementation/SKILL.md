@@ -1,29 +1,29 @@
 ---
 name: view-implementation
-description: Crea la implementación de la vista de una funcionalidad, a partir de un Figma, una página de referencia, o fotos, respetando el enfoque definido en el ADR de la funcionalidad. Detecta y reutiliza componentes ya existentes en el catálogo antes de crear nuevos, y genera la story de Storybook aislada del componente. Usar SIEMPRE que exista un diseño de referencia y haga falta construir componentes de UI, o el usuario mencione Figma, mockup, maqueta, o vista — incluso sin nombrar el comando.
+description: Creates the view implementation of a feature, from a Figma file, a reference page, or photos, respecting the approach defined in the feature's ADR. Detects and reuses already existing components from the catalog before creating new ones, and generates an isolated Storybook story for the component. Use WHENEVER a reference design exists and UI components need to be built, or the user mentions Figma, mockup, wireframe, or view — even without naming the command.
 ---
 
-# /view-implementation — Implementación de la vista
+# /view-implementation — View implementation
 
-## Qué hace
-Crea la implementación de la vista de una funcionalidad. Toma como input Figma, una página web de referencia, o fotos — lo que esté disponible — y hace su mejor esfuerzo con lo que reciba. También lee el `ADR.md` de la funcionalidad, porque ahí vive el enfoque que la vista tiene que respetar (por ejemplo, una estrategia de debounce).
+## What it does
+Creates the view implementation of a feature. Takes as input Figma, a reference web page, or photos — whatever is available — and does its best with what it receives. Also reads the feature's `ADR.md`, because that's where the approach the view must respect lives (for example, a debounce strategy).
 
-## Por qué revisar el catálogo antes de crear
-Crear un componente nuevo cuando ya existe uno equivalente duplica trabajo y fragmenta el design system. Revisar primero evita eso — y cuando sí hay que crear uno nuevo, su story aislada queda documentada para que el próximo caso sí lo encuentre.
+## Why check the catalog before creating
+Creating a new component when an equivalent one already exists duplicates work and fragments the design system. Checking first avoids that — and when a new one does need to be created, its isolated story is documented so the next case finds it.
 
 ## Input
-- Requerido: Figma, página de referencia, o fotos.
-- Requerido: el `ADR.md` de la funcionalidad.
+- Required: Figma, reference page, or photos.
+- Required: the feature's `ADR.md`.
 
-## Proceso
-0. Si el `ADR.md` de la funcionalidad no existe todavía, detente y dilo explícitamente en vez de improvisar el enfoque de la vista sin esa base — sugiere correr `/model` primero.
-1. Revisa el catálogo de componentes / código fuente existente antes de crear nada nuevo.
-2. Si el componente no existe, créalo, respetando el enfoque del ADR.
-3. Crea la story de Storybook aislada de ese componente presentacional — esta story es responsabilidad de este skill, no de `/create-tests` (esas se basan en el spec de `/bdd`, no en el componente aislado).
-4. Deja el componente en uso dentro de la página real.
+## Process
+0. If the feature's `ADR.md` doesn't exist yet, stop and say so explicitly instead of improvising the view approach without that foundation — suggest running `/model` first.
+1. Review the component catalog / existing source code before creating anything new.
+2. If the component doesn't exist, create it, respecting the ADR approach.
+3. Create an isolated Storybook story for that presentational component — this story is this skill's responsibility, not `/create-tests` (those are based on the `/bdd` spec, not on the isolated component).
+4. Leave the component in use within the real page.
 
-## Referencias
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+## References
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
 - `.claude/knowledge/design-systems/adaptiveWebDesignCraftingRichExperiencesWith.txt` — Adaptive Web Design: Crafting Rich Experiences with (Aaron Gustafson)
 - `.claude/knowledge/design-systems/buildingDesignSystemsUnifyUserExperiencesThroughA.txt` — Building Design Systems : Unify User Experiences Through a (Sarrah Vesselov, Taurie Davis)
@@ -36,8 +36,8 @@ Crear un componente nuevo cuando ya existe uno equivalente duplica trabajo y fra
 - `.claude/knowledge/lenguajes-programacion-js-ts/advancedReactDeepDivesInvestigationsPerformance.txt` — Advanced React: deep dives, investigations, performance (Nadia Makarevich)
 - `.claude/knowledge/lenguajes-programacion-js-ts/effectiveTypescript83SpecificWaysToImproveYour.txt` — Effective Typescript : 83 Specific Ways to Improve Your (Dan Vanderkam;)
 
-## Ejemplo
-**Output — componente:**
+## Example
+**Output — component:**
 ```tsx
 // PokemonSearchBar.tsx
 import { useState, useEffect } from 'react';
@@ -51,17 +51,17 @@ interface Props {
 export function PokemonSearchBar({ searchService, onResults }: Props) {
   const [query, setQuery] = useState('');
   useEffect(() => {
-    // Enfoque definido en ADR-busqueda-de-pokemon: debounce de 300ms
+    // Approach defined in ADR-pokemon-search: 300ms debounce
     const timeout = setTimeout(() => {
       if (query.trim()) searchService.search(query).then(onResults);
     }, 300);
     return () => clearTimeout(timeout);
   }, [query, searchService, onResults]);
-  return <input aria-label="Buscar pokémon por nombre" value={query} onChange={(e) => setQuery(e.target.value)} />;
+  return <input aria-label="Search Pokémon by name" value={query} onChange={(e) => setQuery(e.target.value)} />;
 }
 ```
 
-**Output — story aislada:**
+**Output — isolated story:**
 ```tsx
 // PokemonSearchBar.stories.tsx
 import type { Meta, StoryObj } from '@storybook/react-vite';

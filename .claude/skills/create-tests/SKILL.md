@@ -1,43 +1,43 @@
 ---
 name: create-tests
-description: Crea tests con Storybook + Playwright + Vitest a partir de los criterios de aceptación de un spec de Gauge. Usar SIEMPRE que exista un spec de aceptación y haga falta generar pruebas automatizadas, o el usuario mencione tests, pruebas, Storybook, Playwright, o Vitest — incluso sin nombrar el comando.
+description: Creates tests with Storybook + Playwright + Vitest from the acceptance criteria of a Gauge spec. Use WHENEVER an acceptance spec exists and automated tests need to be generated, or the user mentions tests, Storybook, Playwright, or Vitest — even without naming the command.
 ---
 
-# /create-tests — Tests basados en criterios de aceptación
+# /create-tests — Tests based on acceptance criteria
 
-## Qué hace
-Crea los tests a partir de los criterios de aceptación de `/bdd`, usando Storybook + Playwright + Vitest (vía sus plugins de integración con Storybook).
+## What it does
+Creates tests from the acceptance criteria of `/bdd`, using Storybook + Playwright + Vitest (via their Storybook integration plugins).
 
 ## Input
-El spec de Gauge de `/bdd` — no el componente aislado (esas stories ya las crea `/view-implementation`).
+The Gauge spec from `/bdd` — not the isolated component (those stories are already created by `/view-implementation`).
 
-## Selectores — accesibilidad primero, siempre
-Los tests deben depender del spec (comportamiento observable por el usuario), no de la implementación. Sigue esta jerarquía de prioridad — la misma que recomiendan Testing Library y Playwright — de principio a fin, sin saltarte pasos:
+## Selectors — accessibility first, always
+Tests must depend on the spec (behavior observable by the user), not on the implementation. Follow this priority hierarchy — the same one recommended by Testing Library and Playwright — from start to finish, without skipping steps:
 
-1. `getByRole` (con `name`) — primera opción siempre
+1. `getByRole` (with `name`) — always the first option
 2. `getByLabelText`
 3. `getByPlaceholderText`
 4. `getByText`
 5. `getByDisplayValue`
 6. `getByAltText`
 7. `getByTitle`
-8. `getByTestId` — último recurso, solo cuando el elemento genuinamente no tiene rol o nombre accesible
+8. `getByTestId` — last resort, only when the element genuinely has no accessible role or name
 
-Nunca uses `data-testid` (ni atributos custom similares) como default o para leer contenido/orden de una lista — usa roles (`getByRole('list', { name })`, `getByRole('heading', { name })`, etc.). Si un selector por rol/label no encuentra el elemento, es una señal de que el componente necesita un fix de accesibilidad (label, rol, nombre accesible), no que haga falta agregar un `data-testid`.
+Never use `data-testid` (or similar custom attributes) as the default or to read content/order of a list — use roles (`getByRole('list', { name })`, `getByRole('heading', { name })`, etc.). If a role/label selector doesn't find the element, it's a signal that the component needs an accessibility fix (label, role, accessible name), not that a `data-testid` needs to be added.
 
-## Interacciones con estado async (debounce, Suspense, promesas)
-Si el componente usa primitivos async de React (`useDeferredValue`, `startTransition`, `use()` + `Suspense`, o cualquier estado que se resuelva en un microtask fuera del evento síncrono), envuelve la interacción del usuario (`userEvent.type`, `userEvent.click`) en `await act(async () => { ... })` (importado de `react`) para que esa actualización diferida se resuelva dentro del mismo acto — de lo contrario las aserciones pueden leer un DOM en estado intermedio de forma intermitente. Usa `waitFor` como red adicional para aserciones que dependen de un side-effect async (ej. verificar cuántas veces se llamó un mock).
+## Interactions with async state (debounce, Suspense, promises)
+If the component uses React async primitives (`useDeferredValue`, `startTransition`, `use()` + `Suspense`, or any state that resolves in a microtask outside the synchronous event), wrap the user interaction (`userEvent.type`, `userEvent.click`) in `await act(async () => { ... })` (imported from `react`) so that deferred update resolves within the same act — otherwise assertions may intermittently read a DOM in an intermediate state. Use `waitFor` as an additional net for assertions that depend on an async side-effect (e.g., verifying how many times a mock was called).
 
-## Referencias
-Ningún libro de la biblioteca cubre Storybook, Playwright, Vitest o Testing Library específicamente — estos 3 son principios generales de unit testing/TDD, no la tooling exacta que pide esta skill.
+## References
+No book in the library specifically covers Storybook, Playwright, Vitest, or Testing Library — these 3 are general unit testing/TDD principles, not the exact tooling this skill requires.
 
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
-- `.claude/knowledge/buenas-practicas-ingenieria/theArtOfUnitTestingThirdEdition.txt` — Osherove & Khorikov: estructura de un test unitario, uso de test doubles (mocks/stubs), principios generales aplicables aunque el libro no use Testing Library.
-- `.claude/knowledge/buenas-practicas-ingenieria/testDrivenDevelopmentByExample.txt` — Kent Beck: ciclo red-green-refactor, útil como principio aunque esta skill genere tests desde un spec ya existente (no siguiendo TDD estricto).
-- `.claude/knowledge/buenas-practicas-ingenieria/introductionToSoftwareTesting.txt` — Ammann & Offutt: criterios generales de cobertura y diseño de casos de prueba.
+- `.claude/knowledge/buenas-practicas-ingenieria/theArtOfUnitTestingThirdEdition.txt` — Osherove & Khorikov: unit test structure, use of test doubles (mocks/stubs), general principles applicable even though the book doesn't use Testing Library.
+- `.claude/knowledge/buenas-practicas-ingenieria/testDrivenDevelopmentByExample.txt` — Kent Beck: red-green-refactor cycle, useful as a principle even though this skill generates tests from an existing spec (not following strict TDD).
+- `.claude/knowledge/buenas-practicas-ingenieria/introductionToSoftwareTesting.txt` — Ammann & Offutt: general coverage criteria and test case design.
 
-## Ejemplo
+## Example
 ```tsx
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
@@ -55,15 +55,15 @@ function createStoryRouter(service: PokemonSearchService) {
   return createMemoryRouter([{ path: '/', loader: () => ({ service }), Component }], { initialEntries: ['/'] });
 }
 
-const meta: Meta = { title: 'Routes/Pokedex/BuscarPokemon', parameters: { layout: 'padded' } };
+const meta: Meta = { title: 'Routes/Pokedex/SearchPokemon', parameters: { layout: 'padded' } };
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const BuscaPokemonPorNombreExacto: Story = {
+export const SearchPokemonByExactName: Story = {
   render: () => <RouterProvider router={createStoryRouter(makeService(ALL_POKEMONS))} />,
   play: async ({ canvas, userEvent }) => {
-    // getByRole primero — no getByTestId. El input es un searchbox con nombre accesible.
-    const input = canvas.getByRole('searchbox', { name: 'Buscar pokémon por nombre' });
+    // getByRole first — not getByTestId. The input is a searchbox with an accessible name.
+    const input = canvas.getByRole('searchbox', { name: 'Search Pokémon by name' });
     await userEvent.type(input, 'pikachu');
     await expect(await canvas.findByRole('heading', { name: 'Pikachu' })).toBeInTheDocument();
   },

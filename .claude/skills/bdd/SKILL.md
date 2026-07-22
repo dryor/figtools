@@ -1,57 +1,57 @@
 ---
 name: bdd
-description: Ayuda a crear y refinar criterios de aceptación en formato Gauge, a partir de una User Story o de un borrador ya escrito en Gherkin — convirtiéndolo y completando escenarios faltantes mediante preguntas al usuario. Usar SIEMPRE que el usuario pida crear criterios de aceptación, especificar el comportamiento de una funcionalidad antes de implementarla, escriba o pegue un feature en Gherkin, o mencione BDD, Gauge, historias de usuario, o escenarios de aceptación — incluso si no lo pide explícitamente por el nombre del comando.
+description: Helps create and refine acceptance criteria in Gauge format, starting from a User Story or a draft already written in Gherkin — converting it and completing missing scenarios through questions to the user. Use WHENEVER the user asks to create acceptance criteria, specify the behavior of a feature before implementing it, writes or pastes a Gherkin feature, or mentions BDD, Gauge, user stories, or acceptance scenarios — even if not explicitly requested by the command name.
 ---
 
-# /bdd — Criterios de aceptación
+# /bdd — Acceptance criteria
 
-## Qué hace
-Ayuda a convertir una User Story (o un borrador ya escrito en Gherkin) en criterios de aceptación en formato Gauge, y usa preguntas dirigidas al humano para completar escenarios que falten — casos vacíos, casos de error, y comportamiento no especificado explícitamente.
+## What it does
+Helps convert a User Story (or a draft already written in Gherkin) into acceptance criteria in Gauge format, and uses directed questions to the human to complete missing scenarios — empty cases, error cases, and behavior not explicitly specified.
 
-## Por qué preguntar en vez de asumir
-Una User Story casi siempre deja implícitas varias decisiones de comportamiento: qué pasa si el input está vacío, si hay un error, si la acción se repite. Convertir esas decisiones implícitas en preguntas explícitas evita que terminen resueltas por accidente, en el código, sin que nadie las haya decidido a propósito. Este es el propósito central del skill — no es un formateador, es una entrevista.
+## Why ask instead of assume
+A User Story almost always leaves several behavioral decisions implicit: what happens if the input is empty, if there's an error, if the action is repeated. Converting those implicit decisions into explicit questions prevents them from being resolved by accident, in the code, without anyone having deliberately decided them. This is the core purpose of the skill — it's not a formatter, it's an interview.
 
 ## Input
-- **Requerido:** una User Story, o un borrador de escenarios ya escrito en Gherkin (`Feature:` / `Scenario:` / `Given-When-Then`).
-- **Opcional:** una referencia visual (Figma, captura de pantalla, o página web). Úsala solo si la User Story llega incompleta, para inferir comportamiento esperado con el mejor esfuerzo posible. No la pidas si no hace falta — es un apoyo, no un requisito.
+- **Required:** a User Story, or a draft of scenarios already written in Gherkin (`Feature:` / `Scenario:` / `Given-When-Then`).
+- **Optional:** a visual reference (Figma, screenshot, or web page). Use it only if the User Story arrives incomplete, to infer expected behavior with best effort. Don't ask for it if not needed — it's a support, not a requirement.
 
-## Proceso
-1. Si el input ya es un borrador en Gherkin, tradúcelo a formato Gauge conservando el significado exacto de cada escenario — no reinterpretes el comportamiento, solo cambia la sintaxis.
-2. Identifica qué categorías de casos borde probablemente faltan: input vacío, input inválido, mensajes de error, y — cuando la naturaleza de la operación lo amerite (por ejemplo, operaciones que se puedan repetir con el mismo input) — determinismo/idempotencia.
-3. Pregunta al humano por cada hueco detectado en vez de inventar la respuesta. Una pregunta directa vale más que un escenario adivinado.
-4. Con las respuestas, escribe o completa el spec en Gauge.
+## Process
+1. If the input is already a Gherkin draft, translate it to Gauge format preserving the exact meaning of each scenario — do not reinterpret the behavior, only change the syntax.
+2. Identify which categories of edge cases are likely missing: empty input, invalid input, error messages, and — when the nature of the operation warrants it (e.g., operations that can be repeated with the same input) — determinism/idempotence.
+3. Ask the human about each detected gap instead of inventing the answer. A direct question is worth more than a guessed scenario.
+4. With the answers, write or complete the spec in Gauge.
 
-## Referencias
-**Antes de continuar con el Proceso, lee el contenido completo de cada uno de los siguientes archivos — no asumas su contenido a partir del título.**
+## References
+**Before continuing with the Process, read the full content of each of the following files — do not assume their content from the title.**
 
-- `.claude/knowledge/bdd/bddInAction2ndEditionMeapV13.txt` — Smart & Molak, *BDD in Action* (2nd ed.). Cap. 5-6 (describir e ilustrar features con ejemplos concretos) y cap. 7 (de ejemplos a especificaciones ejecutables) son el proceso que sigue esta skill al convertir una User Story en escenarios Gauge.
+- `.claude/knowledge/bdd/bddInAction2ndEditionMeapV13.txt` — Smart & Molak, *BDD in Action* (2nd ed.). Chapters 5-6 (describing and illustrating features with concrete examples) and chapter 7 (from examples to executable specifications) are the process this skill follows when converting a User Story into Gauge scenarios.
 
-## Formato de salida
-Usa siempre esta estructura:
+## Output format
+Always use this structure:
 ```
-# [Nombre del feature]
+# [Feature name]
 
-## [Escenario en frase corta, presente]
-* [paso]
-* [paso]
+## [Scenario in short phrase, present tense]
+* [step]
+* [step]
 
-## [Siguiente escenario]
-* [paso]
+## [Next scenario]
+* [step]
 ```
 
-## Ejemplo
+## Example
 
-**Input:** User Story: "Como usuario quiero buscar un pokémon por su nombre para ver su información rápidamente."
+**Input:** User Story: "As a user I want to search for a Pokémon by name to see its information quickly."
 
 **Output:**
 ```
-# Buscar pokémon por nombre
+# Search Pokémon by name
 
-## Búsqueda exacta encuentra el pokémon
-* El usuario busca "pikachu"
-* El sistema muestra la tarjeta de Pikachu
+## Exact search finds the Pokémon
+* The user searches for "pikachu"
+* The system shows Pikachu's card
 
-## Búsqueda sin resultados
-* El usuario busca "xyz123"
-* El sistema muestra "No se encontraron resultados"
+## Search with no results
+* The user searches for "xyz123"
+* The system shows "No results found"
 ```

@@ -1,18 +1,18 @@
 ---
 name: full-implementation
-description: Crea en un solo paso tanto la implementación de la vista como la interfaz de servicio con su stub en memoria — el equivalente combinado de /view-implementation + /placeholder-implementation. Usar cuando una sola persona (o un solo agente) vaya a encargarse de ambas partes sin necesidad de correrlas por separado.
+description: Creates in a single step both the view implementation and the service interface with its in-memory stub — the combined equivalent of /view-implementation + /placeholder-implementation. Use when a single person (or a single agent) will handle both parts without needing to run them separately.
 ---
 
-# /full-implementation — Vista + servicio en un solo paso
+# /full-implementation — View + service in one step
 
-## Qué hace
-Es el equivalente combinado de `/view-implementation` + `/placeholder-implementation` en un solo punto de entrada — para cuando no hace falta que dos personas o dos agentes trabajen en paralelo en vista y servicio por separado. No tiene lógica propia distinta a la de esos dos comandos; produce la unión de ambos outputs.
+## What it does
+It is the combined equivalent of `/view-implementation` + `/placeholder-implementation` in a single entry point — for when there's no need for two people or two agents to work on view and service separately in parallel. It has no logic of its own beyond those two commands; it produces the union of both outputs.
 
-## Referencias
-Mismas referencias que `/view-implementation` y `/placeholder-implementation` — ver esos `SKILL.md`.
+## References
+Same references as `/view-implementation` and `/placeholder-implementation` — see those `SKILL.md` files.
 
-## Cuándo preferir este sobre los dos comandos separados
-Si el trabajo lo va a hacer una sola persona/agente de punta a punta, este comando evita el overhead de invocar dos skills por separado. Si en cambio dos personas van a trabajar la vista y el servicio en paralelo, es mejor usar `/view-implementation` y `/placeholder-implementation` por separado.
+## When to prefer this over the two separate commands
+If the work is going to be done by a single person/agent end-to-end, this command avoids the overhead of invoking two skills separately. If instead two people are going to work on the view and the service in parallel, it's better to use `/view-implementation` and `/placeholder-implementation` separately.
 
-## Ejemplo
-Produce ambos archivos del ejemplo de `/view-implementation` y `/placeholder-implementation` juntos: el componente + su story aislada, y la interfaz de servicio + su stub en memoria.
+## Example
+Produces both files from the `/view-implementation` and `/placeholder-implementation` examples together: the component + its isolated story, and the service interface + its in-memory stub.
