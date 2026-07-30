@@ -4,6 +4,7 @@ import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
 import { createPanelReader } from "./panel-readers/create-panel-reader";
+import { diffRowIds } from "./layer-snapshot-diff";
 
 // Selectors confirmed by running against a real figma.com session (see
 // .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, and FIGMA_TEST_VIEW_*
@@ -186,53 +187,31 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     };
   }
 
-  // The layers panel is virtualized: a collapsed node's children don't
-  // exist in the DOM until it's expanded, and the expand caret only
-  // becomes visible/clickable after hovering over the row (confirmed by
-  // running against a real session). There's no data-node-id or explicit
-  // hierarchy in the markup: the only signal that a row "is a direct
-  // child" is that it sits immediately below the parent, in visual order
-  // (the wrapper's Y position), with an indentation level exactly one
-  // greater than the parent's. It stops at the first row whose
-  // indentation is less than or equal to the parent's.
+  // The expand caret is only visible/clickable after hovering (confirmed
+  // against a real session). Children are identified by diffing which row
+  // IDs exist before vs. after expansion — see adr/ADR-layers-virtualization.md.
   private async expandAndListChildren(page: Page, nodeId: string): Promise<string[]> {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     await row.hover();
     const caret = row.locator('[data-testid="layers-panel-expand-caret"]');
     if ((await caret.count()) === 0) return [];
+
+    const before = await this.snapshotRowIds(page);
     await caret.click({ force: true });
     await page.waitForTimeout(300);
+    const after = await this.snapshotRowIds(page);
 
-    return page.evaluate((currentTestId) => {
-      const objectsPanel = document.querySelector('[data-testid="objects-panel"]');
-      if (!objectsPanel) return [];
-      const wrappers = Array.from(objectsPanel.querySelectorAll('[style*="translate3d"]')).filter((w) =>
-        w.querySelector(':scope > [data-testid$="-layers-panel-row"]')
-      ) as HTMLElement[];
+    return diffRowIds(before, Array.from(after));
+  }
 
-      const rows = wrappers
-        .map((w) => {
-          const content = w.querySelector(':scope > [data-testid$="-layers-panel-row"]') as HTMLElement;
-          const testid = content.getAttribute("data-testid") ?? "";
-          const indents = content.querySelectorAll(".object_row--indent--ZzXY2").length;
-          const yMatch = w.style.transform.match(/translate3d\([^,]+,\s*([^,]+)/);
-          const y = yMatch ? parseFloat(yMatch[1]) : 0;
-          return { testid, indents, y };
-        })
-        .sort((a, b) => a.y - b.y);
-
-      const parentIndex = rows.findIndex((r) => r.testid === `${currentTestId}-layers-panel-row`);
-      if (parentIndex === -1) return [];
-      const parentIndents = rows[parentIndex].indents;
-
-      const childIds: string[] = [];
-      for (let i = parentIndex + 1; i < rows.length; i++) {
-        if (rows[i].indents <= parentIndents) break;
-        if (rows[i].indents === parentIndents + 1) {
-          childIds.push(rows[i].testid.replace(/-layers-panel-row$/, ""));
-        }
-      }
-      return childIds;
-    }, nodeId);
+  private async snapshotRowIds(page: Page): Promise<Set<string>> {
+    const ids = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="objects-panel"]');
+      if (!panel) return [];
+      return Array.from(panel.querySelectorAll('[data-testid$="-layers-panel-row"]'))
+        .map((el) => el.getAttribute("data-testid")?.replace(/-layers-panel-row$/, "") ?? "")
+        .filter(Boolean);
+    });
+    return new Set(ids);
   }
 }
