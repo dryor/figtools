@@ -1,4 +1,4 @@
-import { chromium, type Page } from "playwright";
+import { chromium, type Page, type Locator } from "playwright";
 import type { FigmaSession, FigmaGateway, FigmaFetchResult } from "../../figma/ports";
 import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
@@ -14,6 +14,28 @@ import { diffRowIds } from "./layer-snapshot-diff";
 const SELECTORS = {
   layerRow: (nodeId: string) => `[data-testid="objects-panel"] [data-testid="${nodeId}-layers-panel-row"]`,
 };
+
+// Deciding when to attempt the Enter/Escape drill-down for a hidden TEXT
+// child (see readHiddenTextChild) matters for performance, not just
+// correctness: a real tree has 100+ nodes, most of them leaves, and every
+// leaf would pay the attempt's cost if it ran unconditionally. Restricting
+// it to "no children found by the normal mechanism, and the active reader
+// confirmed the mechanism works in its mode" reuses a signal readNode
+// already computes for free (childIds from expandAndListChildren) instead
+// of adding a new DOM query — the only real trade-off left is that every
+// leaf node in a mode that supports the mechanism still pays one attempt,
+// which is accepted here for lack of a confirmed cheaper signal (e.g. by
+// node type) — see adr/ADR-pending-decisions.md. Not gated on the node's
+// own `characters` being null: a node can have real children AND a
+// separately hidden TEXT child (unconfirmed combination, see
+// readHiddenTextChild's "limits of the evidence"), so childIds being
+// empty is the only signal used, not whether this node itself is TEXT.
+export function shouldAttemptHiddenTextRead(params: {
+  childIds: string[];
+  supportsHiddenTextChild: boolean;
+}): boolean {
+  return params.childIds.length === 0 && params.supportsHiddenTextChild;
+}
 
 export class PlaywrightFigmaGateway implements FigmaGateway {
   async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
@@ -62,6 +84,7 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
           visible: true,
           styles: {},
           image: null,
+          characters: null,
           children,
         },
       };
@@ -95,25 +118,28 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     return (await page.locator(`[data-testid="${selector}"]`).count()) > 0;
   }
 
+  // Same aria-level-based approach as expandAndListChildren (see its
+  // comment): the old indentation-by-hashed-class counting stopped
+  // matching after a Figma deploy.
   private async listTopLevelNodeIds(page: Page): Promise<string[]> {
     return page.evaluate(() => {
       const objectsPanel = document.querySelector('[data-testid="objects-panel"]');
       if (!objectsPanel) return [];
-      const wrappers = Array.from(objectsPanel.querySelectorAll('[style*="translate3d"]')).filter((w) =>
-        w.querySelector(':scope > [data-testid$="-layers-panel-row"]')
+      const treeRows = Array.from(
+        objectsPanel.querySelectorAll('[role="row"][data-testid="layer-row-with-children"]')
       ) as HTMLElement[];
 
-      const rows = wrappers.map((w) => {
-        const content = w.querySelector(':scope > [data-testid$="-layers-panel-row"]') as HTMLElement;
-        const testid = content.getAttribute("data-testid") ?? "";
-        const indents = content.querySelectorAll(".object_row--indent--ZzXY2").length;
-        return { testid, indents };
+      const rows = treeRows.map((r) => {
+        const content = r.querySelector('[data-testid$="-layers-panel-row"]') as HTMLElement | null;
+        const testid = content?.getAttribute("data-testid") ?? "";
+        const level = Number(r.getAttribute("aria-level") ?? "0");
+        return { testid, level };
       });
       if (rows.length === 0) return [];
 
-      const minIndent = Math.min(...rows.map((r) => r.indents));
+      const minLevel = Math.min(...rows.map((r) => r.level));
       return rows
-        .filter((r) => r.indents === minIndent)
+        .filter((r) => r.level === minLevel)
         .map((r) => r.testid.replace(/-layers-panel-row$/, ""));
     });
   }
@@ -155,6 +181,16 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     if ((await row.count()) === 0) return null;
     await row.click();
+    // The properties panel doesn't always finish re-rendering by the time
+    // the next read starts — confirmed intermittently on a real tree: the
+    // same full traversal sometimes read a node's styles as completely
+    // empty (cornerRadius/fills both missing) despite both being present
+    // moments later on a retry, most often right after a node whose
+    // sibling just went through the Enter/Escape hidden-text drill-down
+    // (readHiddenTextChild), which leaves the panel in extra flux. A short
+    // fixed wait here is cheaper than adding a stability check to every
+    // individual read* method.
+    await page.waitForTimeout(150);
 
     const panel = page.locator('[data-testid="properties-panel"]');
     const name = await reader.readName(row);
@@ -163,6 +199,7 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     const { x, y } = await reader.readPosition(panel);
     const { width, height } = await reader.readSize(panel);
     const styles = await reader.readStyles(panel);
+    const characters = await reader.readCharacters(panel);
 
     const childIds = await this.expandAndListChildren(page, nodeId);
 
@@ -170,6 +207,19 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
     for (const childId of childIds) {
       const child = await this.readNode(page, childId, reader);
       if (child) children.push(child);
+    }
+
+    // childIds has to be known before deciding whether to attempt this —
+    // see shouldAttemptHiddenTextRead's comment for why it's gated this
+    // way instead of running unconditionally on every leaf.
+    if (
+      shouldAttemptHiddenTextRead({
+        childIds,
+        supportsHiddenTextChild: reader.supportsHiddenTextChild?.() ?? false,
+      })
+    ) {
+      const hiddenChild = await this.readHiddenTextChild(page, nodeId, reader);
+      if (hiddenChild) children.push(hiddenChild);
     }
 
     return {
@@ -183,35 +233,157 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       // Requires Figma's image export API; that flow was never designed,
       // so it's left unresolved for now.
       image: null,
+      characters,
       children,
     };
   }
 
-  // The expand caret is only visible/clickable after hovering (confirmed
-  // against a real session). Children are identified by diffing which row
-  // IDs exist before vs. after expansion — see adr/ADR-layers-virtualization.md.
-  private async expandAndListChildren(page: Page, nodeId: string): Promise<string[]> {
-    const row = page.locator(SELECTORS.layerRow(nodeId));
-    await row.hover();
-    const caret = row.locator('[data-testid="layers-panel-expand-caret"]');
-    if ((await caret.count()) === 0) return [];
+  // Confirmed in a real session on two different nodes (a parent with no
+  // caret in the layers panel tree, whose TEXT child never shows up there
+  // even after retrying expandAndListChildren's full budget): pressing
+  // Enter with the parent row selected drills Figma's own canvas
+  // selection into that hidden child, without needing screen coordinates
+  // (the double-click-on-canvas approach considered earlier was rejected
+  // for being less stable than this — it depends on x/y position, zoom,
+  // and scroll). Confirmed on a real node ("Heading 1" → hidden TEXT child
+  // "Empresa Inc."): the revealed child exposes its own full panel —
+  // Layout (its own width/height, distinct from the parent's), Content,
+  // Typography, and Colors — not just Content, so this reads the same
+  // fields readNode reads for any other node (name/type/size/styles/
+  // characters), reusing the same PanelReader already in use instead of
+  // duplicating panel logic.
+  //
+  // Escape does NOT restore the parent's selection — confirmed: it
+  // deselects everything (selection reads null afterwards) — so the
+  // explicit re-click on the parent's own row at the end isn't defensive,
+  // it's required for the caller's DFS to keep working from where it left
+  // off. The reveal itself is ephemeral: after Escape + navigating away,
+  // the child goes back to being absent from the layers panel tree, so
+  // its full data has to be read *now*, while it's still selected — there
+  // won't be a second chance to reach it via a normal readNode(childId)
+  // recursion later.
+  //
+  // Limits of the evidence: only verified with exactly one hidden TEXT
+  // child per parent. Untested: a parent with more than one hidden TEXT
+  // child, or a mix of hidden TEXT and non-TEXT children under a parent
+  // with no caret — this mechanism doesn't attempt to distinguish those
+  // cases and would only ever capture one child.
+  private async readHiddenTextChild(
+    page: Page,
+    parentNodeId: string,
+    reader: PanelReader
+  ): Promise<RawFigmaNode | null> {
+    await page.keyboard.press("Enter");
 
-    const before = await this.snapshotRowIds(page);
-    await caret.click({ force: true });
-    await page.waitForTimeout(300);
-    const after = await this.snapshotRowIds(page);
+    let selectedRow: Locator;
+    let childId: string;
+    try {
+      selectedRow = page.locator('[data-fpl-selected="true"] [data-testid$="-layers-panel-row"]');
+      await selectedRow.waitFor({ timeout: 500 });
+      const testid = await selectedRow.getAttribute("data-testid");
+      if (!testid) return null;
+      childId = testid.replace(/-layers-panel-row$/, "");
+    } catch {
+      return null;
+    }
 
-    return diffRowIds(before, Array.from(after));
+    const panel = page.locator('[data-testid="properties-panel"]');
+    const name = await reader.readName(selectedRow);
+    const type = await reader.readType(selectedRow);
+    const visible = await reader.readVisible(selectedRow);
+    const { x, y } = await reader.readPosition(panel);
+    const { width, height } = await reader.readSize(panel);
+    const styles = await reader.readStyles(panel);
+    const characters = await reader.readCharacters(panel);
+
+    await page.keyboard.press("Escape");
+    await page.locator(SELECTORS.layerRow(parentNodeId)).click();
+
+    return {
+      id: childId,
+      name,
+      type,
+      position: { x, y },
+      size: { width, height },
+      visible,
+      styles,
+      image: null,
+      characters,
+      children: [],
+    };
   }
 
-  private async snapshotRowIds(page: Page): Promise<Set<string>> {
-    const ids = await page.evaluate(() => {
-      const panel = document.querySelector('[data-testid="objects-panel"]');
-      if (!panel) return [];
-      return Array.from(panel.querySelectorAll('[data-testid$="-layers-panel-row"]'))
-        .map((el) => el.getAttribute("data-testid")?.replace(/-layers-panel-row$/, "") ?? "")
-        .filter(Boolean);
-    });
-    return new Set(ids);
+  // The layers panel is virtualized: a collapsed node's children don't
+  // exist in the DOM until it's expanded. The expand caret sits in a
+  // sibling gridcell under the row's ancestor `[role="row"]`, not inside
+  // the row element itself (confirmed after a Figma deploy restructured
+  // the panel — hover-based visibility and a plain `row.locator(...)`
+  // stopped finding it). That same ancestor row also carries `aria-level`
+  // directly, which replaces the old approach of counting indentation
+  // divs by a hashed CSS-module class: it stops at the first row whose
+  // level is less than or equal to the parent's.
+  //
+  // aria-expanded flipping to "true" doesn't mean the child rows are in
+  // the DOM yet — confirmed by tracing a real node where aria-expanded and
+  // data-fpl-tree-row-expanded both read "true" immediately after the
+  // click, but the row with the next tree index (its actual child) took
+  // longer to render and was still missing from the DOM moments later.
+  // Since the caret's presence already means the node has at least one
+  // child, an empty read straight after expanding is never treated as
+  // final — it's retried with a short wait between attempts, up to a
+  // fixed budget, until a non-empty result shows up (or the budget runs
+  // out, which only happens if something else is actually broken).
+  private async expandAndListChildren(page: Page, nodeId: string): Promise<string[]> {
+    const row = page.locator(SELECTORS.layerRow(nodeId));
+    // `role="row"` is a standard ARIA attribute, not a hashed CSS-module
+    // class — this selector is stable on that front (same "stable" bar
+    // used to reclassify `data-fpl-row-container` in
+    // layer-row-panel-reader.ts). The remaining risk is the `ancestor::`
+    // navigation itself, not the attribute name.
+    const treeRow = row.locator("xpath=ancestor::*[@role='row']");
+    const caret = treeRow.locator('[data-testid="layers-panel-expand-caret"]');
+    if ((await caret.count()) === 0) return [];
+
+    let childIds: string[] = [];
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if ((await treeRow.getAttribute("aria-expanded")) !== "true") {
+        await caret.click({ force: true });
+      }
+      await page.waitForTimeout(200);
+      childIds = await this.readChildIds(page, nodeId);
+      if (childIds.length > 0) break;
+    }
+    return childIds;
+  }
+
+  private async readChildIds(page: Page, nodeId: string): Promise<string[]> {
+    return page.evaluate((currentTestId) => {
+      const treeRows = Array.from(
+        document.querySelectorAll('[role="row"][data-testid="layer-row-with-children"]')
+      ) as HTMLElement[];
+
+      const rows = treeRows
+        .map((r) => {
+          const content = r.querySelector('[data-testid$="-layers-panel-row"]') as HTMLElement | null;
+          const testid = content?.getAttribute("data-testid") ?? "";
+          const level = Number(r.getAttribute("aria-level") ?? "0");
+          const index = Number(r.getAttribute("data-fpl-tree-row-index") ?? "0");
+          return { testid, level, index };
+        })
+        .sort((a, b) => a.index - b.index);
+
+      const parentIndex = rows.findIndex((r) => r.testid === `${currentTestId}-layers-panel-row`);
+      if (parentIndex === -1) return [];
+      const parentLevel = rows[parentIndex].level;
+
+      const childIds: string[] = [];
+      for (let i = parentIndex + 1; i < rows.length; i++) {
+        if (rows[i].level <= parentLevel) break;
+        if (rows[i].level === parentLevel + 1) {
+          childIds.push(rows[i].testid.replace(/-layers-panel-row$/, ""));
+        }
+      }
+      return childIds;
+    }, nodeId);
   }
 }

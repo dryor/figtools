@@ -26,12 +26,32 @@ const SELECTORS = {
   // they're told apart by their <h2> text ("Fill"/"Stroke"/"Typography").
   // The actual color lives in the style icon's SVG, not as text.
   consumedStylePanel: '[data-testid="consumed-style-panel"]',
+  // `[class*="..."]` prefix match on the stable part of the CSS-module
+  // class name, ignoring the build hash suffix — this was already the
+  // right pattern here before the same fix was generalized to the hashed
+  // classes found in inspection-panel-reader.ts.
   styleName: '[class*="textStyleTitleName"]',
   styleTag: '[class*="styleTag"]',
   styleColorCircle: '[data-testid="svg-circle"] circle',
 };
 
 export class EditModePanelReader extends LayerRowPanelReader implements PanelReader {
+  // Not implemented: edit mode's DOM (form inputs with a `value` attribute)
+  // shares no selectors with inspection mode's "Content" panel, and no
+  // editor-permission session was available to discover its own selector
+  // for a TEXT node's content. See adr/ADR-pending-decisions.md.
+  async readCharacters(_panel: Locator): Promise<string | null> {
+    return null;
+  }
+
+  // The Enter/Escape drill-down for hidden TEXT children (see
+  // InspectionPanelReader.supportsHiddenTextChild) was only confirmed in
+  // inspection mode — same gap as readCharacters above: no editor-permission
+  // session was available to verify whether it behaves the same way here.
+  supportsHiddenTextChild(): boolean {
+    return false;
+  }
+
   async readPosition(panel: Locator): Promise<{ x: number | null; y: number | null }> {
     const x = await this.readDimension(panel, SELECTORS.positionX);
     const y = await this.readDimension(panel, SELECTORS.positionY);

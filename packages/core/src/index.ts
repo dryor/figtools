@@ -12,6 +12,7 @@ export type {
 export type {
   FigmaColor,
   FigmaPaint,
+  FigmaEffect,
   CommonStyles,
   TypographyStyles,
   FigmaNode,

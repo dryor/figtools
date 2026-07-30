@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FigmaNode, FigmaPage, FigmaPaint, FigmaScrapeResult } from "@figtools/core";
+import type { FigmaNode, FigmaPage, FigmaPaint, FigmaEffect, FigmaScrapeResult } from "@figtools/core";
 import { slugifyWithCollisions } from "./slugify";
 
 export interface MarkdownWriterOptions {
@@ -17,8 +17,17 @@ function formatPaint(paint: FigmaPaint): string {
   return paint.styleName ? `${paint.styleName} (${color})` : color;
 }
 
+function formatEffect(effect: FigmaEffect): string {
+  const color = effect.color ? formatPaint({ styleName: null, color: effect.color }) : "no color";
+  return `${effect.type} (x=${effect.x}, y=${effect.y}, blur=${effect.blur}, spread=${effect.spread}, ${color})`;
+}
+
 function metadataLines(node: FigmaNode): string[] {
   const lines: string[] = [`type: ${node.type}`];
+
+  if (node.characters !== null) {
+    lines.push(`characters: ${node.characters}`);
+  }
 
   if (node.position.x !== null && node.position.y !== null) {
     lines.push(`position: x=${node.position.x}, y=${node.position.y}`);
@@ -27,7 +36,7 @@ function metadataLines(node: FigmaNode): string[] {
     lines.push(`size: width=${node.size.width}, height=${node.size.height}`);
   }
 
-  const { typography, fills, strokes, ...rest } = node.styles;
+  const { typography, fills, strokes, effects, ...rest } = node.styles;
   for (const [key, value] of Object.entries(rest)) {
     if (value === undefined) continue;
     lines.push(`${key}: ${value}`);
@@ -37,6 +46,9 @@ function metadataLines(node: FigmaNode): string[] {
   }
   if (strokes && strokes.length > 0) {
     lines.push(`strokes: ${strokes.map(formatPaint).join(", ")}`);
+  }
+  if (effects && effects.length > 0) {
+    lines.push(`effects: ${effects.map(formatEffect).join(", ")}`);
   }
   if (typography) {
     for (const [key, value] of Object.entries(typography)) {

@@ -13,6 +13,7 @@ function makeNode(overrides: Partial<FigmaNode> & Pick<FigmaNode, "id" | "name">
     visible: true,
     styles: {},
     image: null,
+    characters: null,
     children: [],
     ...overrides,
   };
@@ -209,6 +210,78 @@ describe("writeAsMarkdownTree", () => {
     expect(contents).toContain("fills:");
     expect(contents).toContain("Grayscale/Background");
     expect(contents).toContain("239");
+  });
+
+  it("a leaf node's markdown includes strokes, with the style name when present", async () => {
+    const leaf = makeNode({
+      id: "1:1",
+      name: "HorizontalBorder",
+      styles: {
+        strokeWeight: 1,
+        strokes: [{ styleName: null, color: { r: 226, g: 189, b: 195, a: 1 } }],
+      },
+      children: [],
+    });
+
+    await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
+
+    const contents = await readFile(join(tmpDir, "ABC123", "horizontalborder.md"), "utf8");
+    expect(contents).toContain("strokeWeight: 1");
+    expect(contents).toContain("strokes:");
+    expect(contents).toContain("226");
+  });
+
+  it("a leaf node's markdown includes padding fields when present", async () => {
+    const leaf = makeNode({
+      id: "1:1",
+      name: "Link",
+      styles: { paddingTop: 12, paddingRight: 16, paddingBottom: 12, paddingLeft: 16 },
+      children: [],
+    });
+
+    await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
+
+    const contents = await readFile(join(tmpDir, "ABC123", "link.md"), "utf8");
+    expect(contents).toContain("paddingTop: 12");
+    expect(contents).toContain("paddingRight: 16");
+    expect(contents).toContain("paddingBottom: 12");
+    expect(contents).toContain("paddingLeft: 16");
+  });
+
+  it("a leaf node's markdown includes characters when the node is a TEXT node", async () => {
+    const leaf = makeNode({ id: "1:1", name: "Heading 2", characters: "Consulta de Personas", children: [] });
+
+    await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
+
+    const contents = await readFile(join(tmpDir, "ABC123", "heading-2.md"), "utf8");
+    expect(contents).toContain("characters: Consulta de Personas");
+  });
+
+  it("a leaf node's markdown omits characters when the node isn't a TEXT node", async () => {
+    const leaf = makeNode({ id: "1:1", name: "Header", characters: null, children: [] });
+
+    await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
+
+    const contents = await readFile(join(tmpDir, "ABC123", "header.md"), "utf8");
+    expect(contents).not.toContain("characters");
+  });
+
+  it("a leaf node's markdown includes effects, formatted instead of printed as a raw object", async () => {
+    const leaf = makeNode({
+      id: "1:1",
+      name: "Section",
+      styles: {
+        effects: [{ type: "Drop shadow", x: 0, y: 1, blur: 2, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.05 } }],
+      },
+      children: [],
+    });
+
+    await writeAsMarkdownTree("ABC123", leaf, { outputDir: tmpDir });
+
+    const contents = await readFile(join(tmpDir, "ABC123", "section.md"), "utf8");
+    expect(contents).toContain("effects:");
+    expect(contents).toContain("Drop shadow");
+    expect(contents).not.toContain("[object Object]");
   });
 
   it("a leaf node's markdown includes typography fields when present", async () => {
