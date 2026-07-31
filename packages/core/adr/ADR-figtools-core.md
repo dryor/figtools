@@ -310,3 +310,4 @@ if (!reauth.ok) {
 
 - [`specs/manage_figma_session.spec`](../specs/manage_figma_session.spec) — login, session reuse, and expiration scenarios that motivate `SessionStore` / `InteractiveLogin`.
 - [`specs/get_figma_information.spec`](../specs/get_figma_information.spec) — node/file fetching scenarios that motivate `FigmaGateway` and `build-tree.ts`.
+- [ADR-pending-decisions](./ADR-pending-decisions.md) — known gaps against these specs (`image` capture, tree traversal into `Instance` nodes) where the fix mechanism hasn't been decided yet.

@@ -7,9 +7,9 @@ describe("build-tree: resolve", () => {
     const raw: RawFigmaNode = {
       id: "1:1", name: "Button", type: "COMPONENT",
       position: { x: 1, y: 2 }, size: { width: 10, height: 20 },
-      visible: true, styles: {}, image: null,
+      visible: true, styles: {}, image: null, characters: null,
       children: [
-        { id: "1:2", name: "Label", type: "TEXT", position: { x: 0, y: 0 }, size: { width: 1, height: 1 }, visible: true, styles: {}, image: null, children: [] },
+        { id: "1:2", name: "Label", type: "TEXT", position: { x: 0, y: 0 }, size: { width: 1, height: 1 }, visible: true, styles: {}, image: null, characters: "Label text", children: [] },
       ],
     };
 
@@ -20,16 +20,17 @@ describe("build-tree: resolve", () => {
     expect(result.type).toBe("COMPONENT");
     expect(result.children).toHaveLength(1);
     expect(result.children[0].id).toBe("1:2");
+    expect(result.children[0].characters).toBe("Label text");
   });
 
   it("cuando el type es CANVAS, arma un FigmaPage cuyos nodes son los children del nodo crudo", () => {
     const raw: RawFigmaNode = {
       id: "0:1", name: "Page 1", type: "CANVAS",
       position: { x: 0, y: 0 }, size: { width: 0, height: 0 },
-      visible: true, styles: {}, image: null,
+      visible: true, styles: {}, image: null, characters: null,
       children: [
-        { id: "1:10", name: "Frame A", type: "FRAME", position: { x: 0, y: 0 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, children: [] },
-        { id: "1:20", name: "Frame B", type: "FRAME", position: { x: 0, y: 20 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, children: [] },
+        { id: "1:10", name: "Frame A", type: "FRAME", position: { x: 0, y: 0 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, characters: null, children: [] },
+        { id: "1:20", name: "Frame B", type: "FRAME", position: { x: 0, y: 20 }, size: { width: 10, height: 10 }, visible: true, styles: {}, image: null, characters: null, children: [] },
       ],
     };
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PlaywrightFigmaGateway } from "./playwright-figma-gateway";
+import type { RawFigmaNode } from "../../figma/model";
 
 // There's no "golden" fixture defined yet to compare against real data, so
 // each run leaves the full result on disk (after the asserts, so an already
@@ -34,6 +35,20 @@ const RUN_VIEW_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.F
 // available"). Stays skipped until a real file of that kind is found to
 // validate it — that state can't be forced from the outside.
 const RUN_NO_PANEL_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_NO_PANEL_FILE_KEY);
+
+// FIGMA_TEST_HIDDEN_TEXT_NODE_ID is a top-level ancestor to fetch from
+// (the tree needs to be walked down to the target node — see the test's
+// own comment on fetchNode below); FIGMA_TEST_HIDDEN_TEXT_PARENT_ID is the
+// specific descendant known to have a hidden TEXT child (one that never
+// appears in the layers panel tree — see readHiddenTextChild's comment and
+// adr/ADR-pending-decisions.md). Separate env vars from FIGMA_TEST_VIEW_*
+// so this doesn't force every other view-mode test to point at this
+// specific node.
+const RUN_HIDDEN_TEXT_MODE = Boolean(
+  process.env.FIGMA_TEST_CREDENTIAL &&
+    process.env.FIGMA_TEST_HIDDEN_TEXT_FILE_KEY &&
+    process.env.FIGMA_TEST_HIDDEN_TEXT_PARENT_ID
+);
 
 describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get a specific node from a Figma design (real browser, edit mode)", () => {
   it("fetches real node data, not a stub", async () => {
@@ -107,4 +122,48 @@ describe.skipIf(!RUN_NO_PANEL_MODE)("get_figma_information: Get a specific node 
 
     writeResult("fetch-node-no-panel-mode.json", result);
   }, 60 * 1000);
+});
+
+function findNode(node: RawFigmaNode, id: string): RawFigmaNode | null {
+  if (node.id === id) return node;
+  for (const child of node.children) {
+    const found = findNode(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+describe.skipIf(!RUN_HIDDEN_TEXT_MODE)("get_figma_information: Get a node whose TEXT child never appears in the layers panel (real browser)", () => {
+  it("adds the hidden TEXT child as a real node via the Enter/Escape drill-down, with its own styles read", async () => {
+    const gateway = new PlaywrightFigmaGateway();
+    const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
+
+    // FIGMA_TEST_HIDDEN_TEXT_NODE_ID must be an ancestor of the node with
+    // the hidden TEXT child (e.g. the tree's root), not that node itself —
+    // fetchNode needs the layers panel tree expanded down to it, which
+    // only happens by walking from an ancestor already visible as a
+    // top-level row (same limitation as any other deep node lookup in this
+    // gateway, not specific to this mechanism).
+    const result = await gateway.fetchNode(
+      process.env.FIGMA_TEST_HIDDEN_TEXT_FILE_KEY!,
+      process.env.FIGMA_TEST_HIDDEN_TEXT_NODE_ID!,
+      session
+    );
+
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      const parent = findNode(result.value, process.env.FIGMA_TEST_HIDDEN_TEXT_PARENT_ID!);
+      expect(parent).not.toBeNull();
+      // The hidden child is added as a real node under children — not
+      // folded into the parent's own characters/styles.
+      expect(parent?.children).toHaveLength(1);
+      const child = parent?.children[0];
+      // Not comparing against the literal string on purpose — the test
+      // file's design content can change independently of this test.
+      expect(child?.characters).toBeTruthy();
+      expect(child?.styles.typography).toBeTruthy();
+    }
+
+    writeResult("fetch-node-hidden-text-mode.json", result);
+  }, 10 * 60 * 1000);
 });
