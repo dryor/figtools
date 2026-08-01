@@ -11,11 +11,18 @@ paquete que instalaría un consumidor externo con
 ## Archivo objetivo
 
 ```
-https://www.figma.com/design/HThrmBFcF8JMNq4q6d8C4T/Empresa-Inc.?node-id=0-1&p=f&t=Ww4o2KpC9cxfIpo9-0
+https://www.figma.com/design/HThrmBFcF8JMNq4q6d8C4T/Empresa-Inc.
 ```
 
-`node-id=0-1` resuelve el nodo raíz del archivo junto con todos los nodos
-anidados debajo, así que esta única URL ya cubre toda la página.
+La URL se usa **sin** `node-id`: pasar un node-id específico (la URL
+original traía `?node-id=0-1`, el nodo CANVAS de la propia página) hace que
+el CLI llame a `fetchNode`, que no puede leer ese nodo — el CANVAS de una
+página no tiene fila propia en el panel de capas de Figma, solo la tienen
+sus hijos de primer nivel (confirmado en
+[`playwright-figma-node-source.ts`](../packages/core/src/adapters/playwright/playwright-figma-node-source.ts),
+`buildNodeReader`). Omitir `node-id` hace que el CLI llame a
+`fetchDefaultPage`, hecha específicamente para sintetizar el nodo CANVAS y
+leer todos sus hijos — la forma real de traer todos los nodos de la página.
 
 ## Prerrequisitos
 
@@ -49,7 +56,7 @@ salida:
 
 `empresa-inc/json/` y `empresa-inc/markdown/` quedan versionados en el repo
 como output de referencia generado — una foto de lo que produce
-`@figtools/cli` 0.3.0 para este archivo, sin tener que correrlo ni
+`@figtools/cli` 0.3.1 para este archivo, sin tener que correrlo ni
 autenticarse de nuevo para ver la forma del resultado.
 
 ## Recursos adicionales
