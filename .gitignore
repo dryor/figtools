@@ -6,3 +6,4 @@ pending-tasks.md
 packages/*/dist/
 docs
 docs.json
+.claude/knowledge/
