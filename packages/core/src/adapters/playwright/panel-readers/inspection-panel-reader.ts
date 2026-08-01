@@ -1,5 +1,5 @@
 import type { Locator } from "playwright";
-import type { CommonStyles, FigmaEffect, TypographyStyles } from "../../../figma/model";
+import type { CommonStyles, FigmaEffect, FigmaPaint, TypographyStyles } from "../../../figma/model";
 import type { PanelReader } from "./panel-reader";
 import { LayerRowPanelReader } from "./layer-row-panel-reader";
 
@@ -132,6 +132,14 @@ export class InspectionPanelReader extends LayerRowPanelReader implements PanelR
     const properties = await this.readProperties(panel);
     const styles: CommonStyles & { typography?: TypographyStyles } = {};
 
+    const flow = valueByPropertyName(properties, "Flow");
+    if (flow) styles.flow = flow;
+
+    const widthSizing = parseSizingMode(properties.get("Width"));
+    if (widthSizing) styles.widthSizing = widthSizing;
+    const heightSizing = parseSizingMode(properties.get("Height"));
+    if (heightSizing) styles.heightSizing = heightSizing;
+
     const opacity = parseFirstNumber(properties.get("Opacity"));
     if (opacity !== null) styles.opacity = opacity;
 
@@ -142,23 +150,15 @@ export class InspectionPanelReader extends LayerRowPanelReader implements PanelR
     const cornerRadius = parseFirstNumber(properties.get("Radius"));
     if (cornerRadius !== null) styles.cornerRadius = cornerRadius;
 
-    const fillColor = await this.readTextOrNull(panel.locator(SELECTORS.fillColor));
-    if (fillColor) styles.fills = [{ styleName: null, color: hexToColor(fillColor) }];
+    const fills = await this.readFills(panel);
+    if (fills.length > 0) styles.fills = fills;
 
-    const strokeWeight = parseFirstNumber(firstValueInSection(properties, "Border"));
-    if (strokeWeight !== null) styles.strokeWeight = strokeWeight;
+    const { strokes, strokeWeight, strokeSide } = await this.readStrokeStyles(panel, properties);
+    if (strokeWeight !== undefined) styles.strokeWeight = strokeWeight;
+    if (strokeSide !== undefined) styles.strokeSide = strokeSide;
+    if (strokes.length > 0) styles.strokes = strokes;
 
-    const strokeColor = await this.readTextOrNull(panel.locator(SELECTORS.strokeColor));
-    if (strokeColor) styles.strokes = [{ styleName: null, color: hexToColor(strokeColor) }];
-
-    const paddingTop = parseFirstNumber(properties.get(propertyKey("Padding", "Top")));
-    if (paddingTop !== null) styles.paddingTop = paddingTop;
-    const paddingRight = parseFirstNumber(properties.get(propertyKey("Padding", "Right")));
-    if (paddingRight !== null) styles.paddingRight = paddingRight;
-    const paddingBottom = parseFirstNumber(properties.get(propertyKey("Padding", "Bottom")));
-    if (paddingBottom !== null) styles.paddingBottom = paddingBottom;
-    const paddingLeft = parseFirstNumber(properties.get(propertyKey("Padding", "Left")));
-    if (paddingLeft !== null) styles.paddingLeft = paddingLeft;
+    Object.assign(styles, this.readPaddingStyles(properties));
 
     const itemSpacing = parseFirstNumber(valueByPropertyName(properties, "Gap"));
     if (itemSpacing !== null) styles.itemSpacing = itemSpacing;
@@ -172,12 +172,94 @@ export class InspectionPanelReader extends LayerRowPanelReader implements PanelR
     return styles;
   }
 
+  private async readFills(panel: Locator): Promise<FigmaPaint[]> {
+    const fillLocators = panel.locator(SELECTORS.fillColor);
+    const fillCount = await fillLocators.count();
+    const fills: FigmaPaint[] = [];
+    for (let i = 0; i < fillCount; i++) {
+      const text = await fillLocators.nth(i).textContent();
+      if (text?.trim()) fills.push({ styleName: null, color: hexToColor(text.trim()) });
+    }
+    return fills;
+  }
+
+  // Uniform border: flat "Border" property (no sub-header, single value).
+  // Asymmetric: "Border" sub-header + one row per side → "Border:Right",
+  // "Border:Left", etc. Both shapes confirmed on real nodes (see
+  // firstValueInSection's comment). Only the first asymmetric side is read.
+  private async readStrokeStyles(
+    panel: Locator,
+    properties: Map<string, string>
+  ): Promise<{ strokes: FigmaPaint[]; strokeWeight?: number; strokeSide?: string }> {
+    const result: { strokes: FigmaPaint[]; strokeWeight?: number; strokeSide?: string } = { strokes: [] };
+
+    const flatBorder = properties.get("Border");
+    if (flatBorder !== undefined) {
+      const strokeWeight = parseFirstNumber(flatBorder);
+      if (strokeWeight !== null) result.strokeWeight = strokeWeight;
+    } else {
+      for (const [key, value] of properties) {
+        if (key.startsWith("Border:")) {
+          const weight = parseFirstNumber(value);
+          if (weight !== null) {
+            result.strokeWeight = weight;
+            result.strokeSide = key.slice("Border:".length);
+            break;
+          }
+        }
+      }
+    }
+
+    const strokeLocators = panel.locator(SELECTORS.strokeColor);
+    const strokeCount = await strokeLocators.count();
+    const strokes: FigmaPaint[] = [];
+    for (let i = 0; i < strokeCount; i++) {
+      const text = await strokeLocators.nth(i).textContent();
+      if (text?.trim()) strokes.push({ styleName: null, color: hexToColor(text.trim()) });
+    }
+    result.strokes = strokes;
+    return result;
+  }
+
+  // Uniform padding: flat "Padding" property row with a single value.
+  // Non-uniform: "Padding" sub-header + individual "Top"/"Right"/... rows.
+  // The flat "Padding" key appears when all 4 sides are equal; confirmed on
+  // a real node that showed "Padding: 16px" as a single row in the Layout
+  // section instead of 4 separate rows.
+  // "Padding" for uniform padding doesn't always appear as a flat key —
+  // confirmed on a real node where it appeared as "Border:Padding" (i.e.
+  // Figma placed the "Padding: 16px" row inside the "Border" sub-header
+  // without a dedicated "Padding" sub-header). valueByPropertyName finds
+  // it regardless of which sub-header it landed under.
+  private readPaddingStyles(
+    properties: Map<string, string>
+  ): Pick<CommonStyles, "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft"> {
+    const padding: Pick<CommonStyles, "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft"> = {};
+    const uniformPadding = parseFirstNumber(valueByPropertyName(properties, "Padding"));
+    if (uniformPadding !== null) {
+      padding.paddingTop = uniformPadding;
+      padding.paddingRight = uniformPadding;
+      padding.paddingBottom = uniformPadding;
+      padding.paddingLeft = uniformPadding;
+    } else {
+      const paddingTop = parseFirstNumber(properties.get(propertyKey("Padding", "Top")));
+      if (paddingTop !== null) padding.paddingTop = paddingTop;
+      const paddingRight = parseFirstNumber(properties.get(propertyKey("Padding", "Right")));
+      if (paddingRight !== null) padding.paddingRight = paddingRight;
+      const paddingBottom = parseFirstNumber(properties.get(propertyKey("Padding", "Bottom")));
+      if (paddingBottom !== null) padding.paddingBottom = paddingBottom;
+      const paddingLeft = parseFirstNumber(properties.get(propertyKey("Padding", "Left")));
+      if (paddingLeft !== null) padding.paddingLeft = paddingLeft;
+    }
+    return padding;
+  }
+
   async readCharacters(panel: Locator): Promise<string | null> {
     return this.readTextOrNull(panel.locator(SELECTORS.contentPanel).locator(SELECTORS.contentValue));
   }
 
   // Confirmed in a real session, on two different hidden TEXT children
-  // (see playwright-figma-gateway.ts's readHiddenTextChild): pressing
+  // (see playwright-figma-node-source.ts's readHiddenTextChild): pressing
   // Enter with a parent row selected drills into its TEXT child even when
   // that child never appears in the layers panel tree at all — not even
   // after retrying the normal expand mechanism. Never verified in edit
@@ -313,6 +395,16 @@ export function parseTypography(properties: Map<string, string>): TypographyStyl
     ...(textAlignVertical ? { textAlignVertical } : {}),
     ...(letterSpacing !== null ? { letterSpacing } : {}),
   };
+}
+
+// Extracts the sizing mode keyword from strings like "Fixed (280px)",
+// "Hug (120px)", or "Fill". Returns null for plain "342px" (no keyword).
+function parseSizingMode(text: string | undefined): string | null {
+  if (!text) return null;
+  if (text.startsWith("Hug")) return "Hug";
+  if (text.startsWith("Fill")) return "Fill";
+  if (text.startsWith("Fixed")) return "Fixed";
+  return null;
 }
 
 // Covers "342px", "Fixed (1,440px)", and "Hug (1,153px)" — the first
