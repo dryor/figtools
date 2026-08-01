@@ -18,7 +18,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  examples:
+  examples/cli-empresa-inc:
     dependencies:
       '@figtools/cli':
         specifier: ^0.3.1

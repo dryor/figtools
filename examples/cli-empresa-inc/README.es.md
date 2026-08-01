@@ -1,6 +1,6 @@
 *[Read in English](./README.md)*
 
-# examples
+# cli-empresa-inc
 
 Ejemplo end-to-end de `@figtools/cli` **publicado** resolviendo un archivo
 real de Figma. Este workspace instala `@figtools/cli` desde el registro de
@@ -19,7 +19,7 @@ original traía `?node-id=0-1`, el nodo CANVAS de la propia página) hace que
 el CLI llame a `fetchNode`, que no puede leer ese nodo — el CANVAS de una
 página no tiene fila propia en el panel de capas de Figma, solo la tienen
 sus hijos de primer nivel (confirmado en
-[`playwright-figma-node-source.ts`](../packages/core/src/adapters/playwright/playwright-figma-node-source.ts),
+[`playwright-figma-node-source.ts`](../../packages/core/src/adapters/playwright/playwright-figma-node-source.ts),
 `buildNodeReader`). Omitir `node-id` hace que el CLI llame a
 `fetchDefaultPage`, hecha específicamente para sintetizar el nodo CANVAS y
 leer todos sus hijos — la forma real de traer todos los nodos de la página.
@@ -29,7 +29,7 @@ leer todos sus hijos — la forma real de traer todos los nodos de la página.
 Una sesión de Figma autenticada una sola vez con el CLI:
 
 ```bash
-pnpm --filter examples exec figtools login
+pnpm --filter cli-empresa-inc exec figtools login
 ```
 
 Abre una ventana de Chromium en la página de login de Figma; al completarlo,
@@ -40,7 +40,7 @@ los siguientes comandos.
 
 ```bash
 pnpm install
-pnpm --filter examples run fetch
+pnpm --filter cli-empresa-inc run fetch
 ```
 
 Esto corre el CLI dos veces contra la URL objetivo, una por formato de
@@ -58,10 +58,10 @@ salida:
 este archivo ya pesa más de 20MB, y `@figtools/core` maneja una ventana real
 de Chromium contra figma.com — cuánto tarda una corrida (y si llega a
 terminar) depende de qué tan rápido esa máquina renderiza el editor de
-Figma, pesado en WebGL. Corré `pnpm --filter examples run fetch` vos mismo
+Figma, pesado en WebGL. Corré `pnpm --filter cli-empresa-inc run fetch` vos mismo
 para generarlo localmente.
 
 ## Recursos adicionales
 
-- [`@figtools/cli`](../packages/cli) — el paquete que instala este ejemplo.
-- [README del monorepo](../README.es.md) — panorama general de `figtools`.
+- [`@figtools/cli`](../../packages/cli) — el paquete que instala este ejemplo.
+- [README del monorepo](../../README.es.md) — panorama general de `figtools`.

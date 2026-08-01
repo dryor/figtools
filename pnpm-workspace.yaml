@@ -1,6 +1,6 @@
 packages:
   - "packages/*"
-  - "examples"
+  - "examples/*"
 minimumReleaseAgeExclude:
   - '@figtools/cli@0.3.0'
   - '@figtools/cli@0.3.1'

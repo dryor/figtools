@@ -8,4 +8,4 @@ docs
 docs.json
 .claude/knowledge/
 graphify-out/
-examples/empresa-inc/
+examples/*/empresa-inc/
