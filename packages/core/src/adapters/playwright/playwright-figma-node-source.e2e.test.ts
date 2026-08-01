@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { PlaywrightFigmaNodeSource } from "./playwright-figma-gateway";
+import { PlaywrightFigmaNodeSource } from "./playwright-figma-node-source";
 import type { RawFigmaNode } from "../../figma/model";
 
 // There's no "golden" fixture defined yet to compare against real data, so
