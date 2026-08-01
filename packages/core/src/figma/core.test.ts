@@ -83,10 +83,47 @@ describe("get_figma_information: Get the nodes of the default page in a Figma de
 
     const result = await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno");
 
-    expect(fetchDefaultPage).toHaveBeenCalledWith("ABC123");
+    expect(fetchDefaultPage).toHaveBeenCalledWith("ABC123", {
+      session: VALID_SESSION,
+      image: { enabled: false, format: "PNG" },
+      svg: { enabled: false },
+    });
     expect(result.ok).toBe(true);
     const page = (result as { ok: true; value: FigmaPage }).value;
     expect(page.nodes).toHaveLength(1);
+  });
+});
+
+describe("get_figma_information: Fetch options (image/svg capture)", () => {
+  it("without overrides, uses DEFAULT_FETCH_OPTIONS (image and svg capture off)", async () => {
+    const raw = rawElement();
+    const fetchNode = vi.fn(() => ({ status: "ok" as const, value: raw }));
+    const { core } = makeCore({ gateway: createFakeGateway({ fetchNode }) });
+
+    await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23");
+
+    expect(fetchNode).toHaveBeenCalledWith("ABC123", "1:23", {
+      session: VALID_SESSION,
+      image: { enabled: false, format: "PNG" },
+      svg: { enabled: false },
+    });
+  });
+
+  it("merges the given overrides onto DEFAULT_FETCH_OPTIONS and forwards them to the gateway", async () => {
+    const raw = rawElement();
+    const fetchNode = vi.fn(() => ({ status: "ok" as const, value: raw }));
+    const { core } = makeCore({ gateway: createFakeGateway({ fetchNode }) });
+
+    await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23", {
+      image: { enabled: true, format: "JPEG" },
+      svg: { enabled: true },
+    });
+
+    expect(fetchNode).toHaveBeenCalledWith("ABC123", "1:23", {
+      session: VALID_SESSION,
+      image: { enabled: true, format: "JPEG" },
+      svg: { enabled: true },
+    });
   });
 });
 

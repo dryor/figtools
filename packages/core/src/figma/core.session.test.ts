@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createFigmaScraperCore } from "./core";
 import type { RawFigmaNode } from "./model";
 import { createFakeSessionStore, createFakeInteractiveLogin, createFakeGateway } from "./testing/fakes";
@@ -62,19 +62,31 @@ describe("manage_figma_session: The session expires during a request", () => {
     const interactiveLogin = createFakeInteractiveLogin(NEW_SESSION);
 
     let attempt = 0;
-    const gateway = createFakeGateway({
-      fetchNode: () => {
-        attempt++;
-        return attempt === 1 ? { status: "session-expired" } : { status: "ok", value: rawNode };
-      },
+    const fetchNode = vi.fn(() => {
+      attempt++;
+      return attempt === 1 ? { status: "session-expired" as const } : { status: "ok" as const, value: rawNode };
     });
+    const gateway = createFakeGateway({ fetchNode });
     const core = createFigmaScraperCore({ sessionStore, interactiveLogin, gateway });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1");
+    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1", { svg: { enabled: true } });
 
     expect(interactiveLogin.calls).toBe(1);
     expect(attempt).toBe(2);
     expect(sessionStore.current).toEqual(NEW_SESSION);
     expect(result.ok).toBe(true);
+
+    // The retry uses the renewed session but keeps the same fetch options
+    // as the first attempt — nothing gets dropped or reset in between.
+    expect(fetchNode).toHaveBeenNthCalledWith(1, "X", "1:1", {
+      session: VALID_SESSION,
+      image: { enabled: false, format: "PNG" },
+      svg: { enabled: true },
+    });
+    expect(fetchNode).toHaveBeenNthCalledWith(2, "X", "1:1", {
+      session: NEW_SESSION,
+      image: { enabled: false, format: "PNG" },
+      svg: { enabled: true },
+    });
   });
 });

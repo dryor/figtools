@@ -1,4 +1,11 @@
-import type { FigmaSession, SessionStore, InteractiveLogin, FigmaNodeSource, FigmaFetchResult } from "../ports";
+import type {
+  FigmaSession,
+  SessionStore,
+  InteractiveLogin,
+  FigmaNodeSource,
+  FigmaFetchResult,
+  FigmaFetchRequest,
+} from "../ports";
 import type { RawFigmaNode } from "../model";
 
 export function createFakeSessionStore(initial: FigmaSession | null = null) {
@@ -26,15 +33,19 @@ export function createFakeInteractiveLogin(session: FigmaSession) {
 }
 
 export function createFakeGateway(responses: {
-  fetchNode?: (fileKey: string, nodeId: string) => FigmaFetchResult<RawFigmaNode>;
-  fetchDefaultPage?: (fileKey: string) => FigmaFetchResult<RawFigmaNode>;
+  fetchNode?: (fileKey: string, nodeId: string, request: FigmaFetchRequest) => FigmaFetchResult<RawFigmaNode>;
+  fetchDefaultPage?: (fileKey: string, request: FigmaFetchRequest) => FigmaFetchResult<RawFigmaNode>;
 }): FigmaNodeSource {
   return {
-    async fetchNode(fileKey, nodeId) {
-      return responses.fetchNode ? responses.fetchNode(fileKey, nodeId) : { status: "not-found-or-no-access" };
+    async fetchNode(fileKey, nodeId, request) {
+      return responses.fetchNode
+        ? responses.fetchNode(fileKey, nodeId, request)
+        : { status: "not-found-or-no-access" };
     },
-    async fetchDefaultPage(fileKey) {
-      return responses.fetchDefaultPage ? responses.fetchDefaultPage(fileKey) : { status: "not-found-or-no-access" };
+    async fetchDefaultPage(fileKey, request) {
+      return responses.fetchDefaultPage
+        ? responses.fetchDefaultPage(fileKey, request)
+        : { status: "not-found-or-no-access" };
     },
   };
 }

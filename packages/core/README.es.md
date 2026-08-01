@@ -24,14 +24,14 @@ npx playwright install chromium
 import {
   createFigmaScraperCore,
   CookieSessionStore,
-  PlaywrightFigmaGateway,
+  PlaywrightFigmaNodeSource,
   PlaywrightLogin,
 } from "@figtools/core";
 
 const core = createFigmaScraperCore({
   sessionStore: new CookieSessionStore(),
   interactiveLogin: new PlaywrightLogin(),
-  gateway: new PlaywrightFigmaGateway(),
+  gateway: new PlaywrightFigmaNodeSource(),
 });
 
 const result = await core.resolveUrl(
@@ -48,6 +48,27 @@ if (!result.ok) {
 La primera vez que llamas a `resolveUrl` (o `ensureSession`) sin una sesión guardada, `PlaywrightLogin` abre una ventana de Chromium en `https://www.figma.com/login` y espera a que completes el login manualmente — incluye el flujo de Google SSO si así inicias sesión. Una vez autenticado, `CookieSessionStore` guarda las cookies en `~/.figma-scraper/session.json` para no repetir el login en llamadas futuras.
 
 Si la URL no trae `node-id`, `resolveUrl` devuelve la página activa completa como `FigmaPage` (sus nodos de nivel superior).
+
+### Parámetros de `createFigmaScraperCore`
+
+`createFigmaScraperCore(deps: FigmaScraperCoreDeps)` recibe un único objeto con tres dependencias obligatorias:
+
+| Parámetro | Tipo | Propósito |
+| --- | --- | --- |
+| `sessionStore` | `SessionStore` | Persiste y recupera la sesión de Figma (cookies) entre corridas. `CookieSessionStore` escribe en `~/.figma-scraper/session.json`; reemplazalo por tu propia implementación para guardar la sesión en otro lado (ver "Usar tu propio almacenamiento de sesión" abajo). |
+| `interactiveLogin` | `InteractiveLogin` | Ejecuta el login real cuando no hay sesión guardada o expiró. `PlaywrightLogin` abre una ventana de Chromium real para que una persona lo complete. |
+| `gateway` | `FigmaNodeSource` | Trae los datos crudos del nodo/página. `PlaywrightFigmaNodeSource` es la única implementación incluida hoy — automatiza la UI de figma.com con Playwright. |
+
+### Controlar la captura de imagen y SVG
+
+```ts
+const result = await core.resolveUrl(url, {
+  image: { enabled: true, format: "JPEG" }, // "PNG" | "JPEG" | "PDF"
+  svg: { enabled: true },
+});
+```
+
+El segundo argumento opcional de `resolveUrl` se combina con `DEFAULT_FETCH_OPTIONS` — **tanto `image.enabled` como `svg.enabled` son `false` por default**. Capturar cualquiera de los dos pasa por el panel de export real de Figma, un round-trip completo de UI por nodo (hasta decenas de segundos en el peor caso en un árbol grande), así que es opt-in en vez de pagarse siempre. Cuando está desactivado, `image`/`svgCode` vuelven `null` en cada nodo en vez de capturarse.
 
 ### Manejar sesión expirada o forzar un nuevo login
 
@@ -85,6 +106,30 @@ class InMemorySessionStore implements SessionStore {
   async saveSession(session: FigmaSession) { this.session = session; }
 }
 ```
+
+### El shape del nodo devuelto (`FigmaNode`)
+
+`result.value` es un `FigmaNode` (nodo único) o un `FigmaPage` (`{ id, name, nodes: FigmaNode[] }`, cuando la URL no trae `node-id`). Cada `FigmaNode`:
+
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| `id` | `string` | El id de nodo propio de Figma (formato `"1:23"`) |
+| `name` | `string` | La etiqueta editable de la capa |
+| `type` | `string` | El tipo de nodo de Figma (`"FRAME"`, `"TEXT"`, `"COMPONENT"`, ...) |
+| `position` | `{ x, y }` (nullable) | `null` cuando el campo no existe para el tipo/estado de este nodo (ej. auto-layout `Fill`/`Hug`), no es lo mismo que un `0` real |
+| `size` | `{ width, height }` (nullable) | Mismo convenio de nullability que `position` |
+| `visible` | `boolean` | Refleja el toggle de visibilidad de la capa — los nodos ocultos igual se incluyen en el árbol |
+| `image` | `Buffer \| null` | `null` salvo que se haya pasado `image.enabled` a `resolveUrl` (ver arriba) |
+| `svgCode` | `string \| null` | `null` salvo que se haya pasado `svg.enabled`, o el `type` del nodo no sea exportable a SVG |
+| `characters` | `string \| null` | El contenido literal de un nodo TEXT; `null` para nodos que no son TEXT |
+| `children` | `FigmaNode[]` | Recursivo |
+| `styles` | `CommonStyles & { typography?: TypographyStyles }` | Ver abajo |
+
+`styles` (`CommonStyles`) — todos los campos son opcionales, presentes solo cuando el panel de Figma los muestra para ese nodo:
+
+`flow`, `widthSizing`, `heightSizing`, `fills` (`FigmaPaint[]`), `strokes` (`FigmaPaint[]`), `strokeWeight`, `strokeSide`, `cornerRadius`, `effects` (`FigmaEffect[]`), `opacity`, `blendMode`, `paddingTop`/`paddingRight`/`paddingBottom`/`paddingLeft`, `itemSpacing`.
+
+`styles.typography` (`TypographyStyles`, solo en nodos con sección de Typography): `styleName`, `fontFamily`, `fontWeight`, `fontSize`, `lineHeightPx`, `style`, `textAlignHorizontal`, `textAlignVertical`, `letterSpacing`, `lineHeightPercent`, `textCase`, `textDecoration`.
 
 ## Troubleshooting
 

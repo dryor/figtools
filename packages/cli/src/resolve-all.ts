@@ -1,4 +1,4 @@
-import type { FigmaScraperCore, FigmaScrapeResult, FigmaScraperError, Result } from "@figtools/core";
+import type { FigmaScraperCore, FigmaScrapeResult, FigmaScraperError, Result, FigmaFetchOptions } from "@figtools/core";
 
 export interface UrlResolution {
   url: string;
@@ -8,6 +8,7 @@ export interface UrlResolution {
 export async function resolveAll(
   core: FigmaScraperCore,
   urls: string[],
+  opts?: Partial<FigmaFetchOptions>,
 ): Promise<UrlResolution[]> {
   const sessionResult = await core.ensureSession();
 
@@ -15,7 +16,7 @@ export async function resolveAll(
     return urls.map((url) => ({ url, result: sessionResult }));
   }
 
-  const settled = await Promise.allSettled(urls.map((url) => core.resolveUrl(url)));
+  const settled = await Promise.allSettled(urls.map((url) => core.resolveUrl(url, opts)));
 
   return urls.map((url, i) => {
     const outcome = settled[i];

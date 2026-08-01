@@ -172,3 +172,47 @@ Pikachu (closes) → back to Name (closes) → next List Item → sometimes back
 to Pikachu or Name again` — to see whether any read happens against the
 wrong selected row during that backward movement, which is the scenario
 that would actually corrupt data silently.
+
+## E2e tests require too many env vars to be trustworthy as a real check
+
+Not a bug — a gap in confidence. `playwright-figma-node-source.e2e.test.ts`
+gates its five `describe` blocks on combinations of `FIGMA_TEST_CREDENTIAL`,
+`FIGMA_TEST_FILE_KEY`/`FIGMA_TEST_NODE_ID`, `FIGMA_TEST_VIEW_FILE_KEY`/
+`FIGMA_TEST_VIEW_NODE_ID`, `FIGMA_TEST_NO_PANEL_FILE_KEY`/
+`FIGMA_TEST_NO_PANEL_NODE_ID`, and `FIGMA_TEST_HIDDEN_TEXT_FILE_KEY`/
+`FIGMA_TEST_HIDDEN_TEXT_NODE_ID`/`FIGMA_TEST_HIDDEN_TEXT_PARENT_ID` (each
+`Boolean(...)`-gated, `describe.skipIf(!RUN_X_MODE)`). Same pattern in
+`inspection-panel-reader.e2e.test.ts`, hardcoded to one specific
+`FILE_KEY`/`NODE_ID` instead of an env var. `CONTRIBUTING.md` already
+flags the symptom ("no stable way to configure which Figma files/nodes
+[the e2e tests] run against... don't rely on it yet") without naming this
+as the cause.
+
+Raised while adding the image/SVG opt-in feature (2026-08-01): running the
+suite without every one of those env vars set doesn't fail — it silently
+skips whichever blocks are missing their file/node keys, so `pnpm
+test:e2e` can report all-green while having verified nothing beyond
+whichever env vars happened to be exported that session. The only var
+that should be structurally required is the session credential — the
+specific files/nodes exercised are a fixture problem, not something the
+person running the tests should have to supply by hand each time.
+
+Candidate mechanisms, not yet decided:
+
+- **Commit a fixed, stable Figma file** dedicated to fixtures (already
+  partly done — `HThrmBFcF8JMNq4q6d8C4T`/Empresa-Inc. is reused across
+  several tests and comments in this codebase) with the file/node keys
+  hardcoded as constants instead of env vars, keeping only
+  `FIGMA_TEST_CREDENTIAL` as an env var. Risk: the fixture file's content
+  (specific nodes, hidden-text children, view-only permissions) has to
+  stay stable indefinitely, and view-only/no-panel modes need a *second*
+  account's session to set up realistically.
+- **Resolve fixture nodes dynamically** (e.g. search the file for a node
+  matching a type/name pattern at test-run time) instead of hardcoding
+  ids, so the suite tolerates the fixture file being edited. Adds
+  complexity and a new way for the suite to fail to find what it's
+  looking for.
+- **Other:** not explored yet.
+
+Deliberately deferred, not implemented now — this session's scope was the
+image/SVG opt-in feature plus documentation, not an e2e fixture redesign.

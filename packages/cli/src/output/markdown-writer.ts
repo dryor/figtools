@@ -5,7 +5,7 @@ import { slugifyWithCollisions } from "./slugify";
 
 export interface MarkdownWriterOptions {
   outputDir: string;
-  imageFormat?: "webp" | "png" | "jpg";
+  imageFormat?: "png" | "jpg" | "pdf";
 }
 
 function isFigmaPage(result: FigmaScrapeResult): result is FigmaPage {

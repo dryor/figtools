@@ -87,6 +87,28 @@ and [`specs/get_figma_information.spec`](../specs/get_figma_information.spec).
   on how large or changeable Figma's real data shape is. See the
   interfaces section.
 
+- **Port contract extended with an opt-in capture option, session bundled
+  into the same request object.** Image and SVG capture (`FigmaAssetCapturer`)
+  each cost a full Figma export-panel round-trip per node — real time on a
+  large tree — so `FigmaFetchOptions` (`image.enabled`/`image.format`,
+  `svg.enabled`) lets a caller skip either. Every field is required, not
+  optional: an earlier draft made them optional with a
+  `opts?.includeImages !== false` check re-derived deep inside
+  `playwright-figma-node-source.ts` — the exact anti-pattern *Object
+  Design Style Guide* (Noback) warns against in §2.4/§2.6, where a default
+  buried in the implementation is invisible from the object's construction
+  site. The fix: `DEFAULT_FETCH_OPTIONS` is the one place the default
+  lives (`false`/`false`, deliberately — a library shouldn't pay for data
+  the caller didn't ask for), and it's merged with any caller overrides
+  exactly once, at `resolveUrl`'s boundary; everything downstream
+  (`FigmaNodeSource.fetchNode`/`fetchDefaultPage`, and every private
+  method between them) receives a fully-resolved `FigmaFetchRequest`,
+  never a partial one. `session` was folded into that same request object
+  instead of staying a separate parameter, anticipating a later change to
+  make `session` itself optional (a session-less fetch path, not yet
+  designed) — bundling now means that becomes a type edit, not another
+  signature change across the port.
+
 - **Relationships:**
   - `DERIVES_FROM` [`specs/manage_figma_session.spec`](../specs/manage_figma_session.spec)
   - `DERIVES_FROM` [`specs/get_figma_information.spec`](../specs/get_figma_information.spec)
@@ -135,6 +157,12 @@ flowchart TD
 
 ### TypeScript
 
+Synced with the current implementation (`figma/model.ts`, `figma/ports.ts`,
+`figma/core.ts`) as of the image/SVG opt-in feature. The rest of this ADR
+still refers to the port by its original name, `FigmaGateway` — it was
+renamed to `FigmaNodeSource` (see CHANGELOG); not renamed throughout this
+document to keep this change contained to the block below.
+
 ```typescript
 export type FigmaScraperErrorCode =
   | "VALIDATION_EMPTY_URL"
@@ -157,23 +185,34 @@ export type Result<T, E> =
   | { ok: false; error: E };
 
 export interface CommonStyles {
-  fills?: Paint[];
-  strokes?: Paint[];
+  flow?: string;
+  widthSizing?: string;
+  heightSizing?: string;
+  fills?: FigmaPaint[];
+  strokes?: FigmaPaint[];
   strokeWeight?: number;
+  strokeSide?: string;
   cornerRadius?: number;
-  effects?: Effect[];
+  effects?: FigmaEffect[];
   opacity?: number;
   blendMode?: string;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  itemSpacing?: number;
 }
 
 export interface TypographyStyles {
-  fontFamily: string;
-  fontWeight: number;
-  fontSize: number;
-  textAlignHorizontal: string;
-  textAlignVertical: string;
-  letterSpacing: number;
-  lineHeightPx: number;
+  styleName: string | null;
+  fontFamily: string | null;
+  fontWeight: number | null;
+  fontSize: number | null;
+  lineHeightPx: number | null;
+  style?: string;
+  textAlignHorizontal?: string;
+  textAlignVertical?: string;
+  letterSpacing?: number;
   lineHeightPercent?: number;
   textCase?: string;
   textDecoration?: string;
@@ -183,10 +222,13 @@ export interface FigmaNode {
   id: string;
   name: string;
   type: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
+  position: { x: number | null; y: number | null };
+  size: { width: number | null; height: number | null };
+  visible: boolean;
   styles: CommonStyles & { typography?: TypographyStyles };
-  image: File | null;
+  image: Buffer | null;
+  svgCode: string | null;
+  characters: string | null;
   children: FigmaNode[];
 }
 
@@ -202,10 +244,13 @@ export interface RawFigmaNode {
   id: string;
   name: string;
   type: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
+  position: { x: number | null; y: number | null };
+  size: { width: number | null; height: number | null };
+  visible: boolean;
   styles: CommonStyles & { typography?: TypographyStyles };
-  image: File | null;
+  image: Buffer | null;
+  svgCode: string | null;
+  characters: string | null;
   children: RawFigmaNode[];
 }
 
@@ -229,13 +274,38 @@ export interface InteractiveLogin {
 export type FigmaFetchResult<T> =
   | { status: "ok"; value: T }
   | { status: "not-found-or-no-access" }
-  | { status: "session-expired" };
+  | { status: "session-expired" }
+  | { status: "incomplete-node-data" };
 
-export interface FigmaGateway {
+// The real formats Figma's export panel offers for an image. Every field
+// of FigmaFetchOptions is required, not optional — the default lives in
+// exactly one place (DEFAULT_FETCH_OPTIONS), not re-derived at each call
+// site. See the "Port contract extended with an opt-in capture option"
+// decision below for why.
+export type ImageExportFormat = "PNG" | "JPEG" | "PDF";
+
+export interface FigmaFetchOptions {
+  image: { enabled: boolean; format: ImageExportFormat };
+  svg: { enabled: boolean };
+}
+
+export const DEFAULT_FETCH_OPTIONS: FigmaFetchOptions = {
+  image: { enabled: false, format: "PNG" },
+  svg: { enabled: false },
+};
+
+// Bundles the session with the fetch options instead of a separate
+// positional parameter, so that a future session-optional path is a type
+// edit here, not a signature change at every call site.
+export interface FigmaFetchRequest extends FigmaFetchOptions {
+  session: FigmaSession;
+}
+
+export interface FigmaNodeSource {
   // node-id only makes sense within a file: fileKey is also needed to be
   // able to navigate to the node's real URL.
-  fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
-  fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;
+  fetchNode(fileKey: string, nodeId: string, request: FigmaFetchRequest): Promise<FigmaFetchResult<RawFigmaNode>>;
+  fetchDefaultPage(fileKey: string, request: FigmaFetchRequest): Promise<FigmaFetchResult<RawFigmaNode>>;
 }
 
 // If raw.type === "CANVAS" builds a FigmaPage (its children become the
@@ -245,7 +315,7 @@ export function resolve(raw: RawFigmaNode): FigmaScrapeResult;
 export interface FigmaScraperCoreDeps {
   sessionStore: SessionStore;
   interactiveLogin: InteractiveLogin;
-  gateway: FigmaGateway;
+  gateway: FigmaNodeSource;
 }
 
 export interface FigmaScraperCore {
@@ -254,9 +324,10 @@ export interface FigmaScraperCore {
    * session, or if the gateway responds "session-expired", it triggers
    * the login on its own, saves the new session via sessionStore, and
    * retries this same request before returning the result (spec: "The
-   * session expires during a request").
+   * session expires during a request"). overrides merges onto
+   * DEFAULT_FETCH_OPTIONS (image/svg capture off by default).
    */
-  resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
+  resolveUrl(url: string, overrides?: Partial<FigmaFetchOptions>): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
 
   /**
    * Independent from resolveUrl: forces a new login even if the current
@@ -265,6 +336,11 @@ export interface FigmaScraperCore {
    * resolveUrl uses it in later calls.
    */
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
+
+  // Triggers login only if there's no saved session. Unlike
+  // reauthenticate(), doesn't force a new login if the current session
+  // is still valid.
+  ensureSession(): Promise<Result<FigmaSession, FigmaScraperError>>;
 }
 
 export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraperCore;
@@ -275,7 +351,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
 ```typescript
 import {
   createFigmaScraperCore,
-  PlaywrightFigmaGateway,
+  PlaywrightFigmaNodeSource,
   PlaywrightLogin,
   CookieSessionStore,
 } from "@figtools/core";
@@ -283,7 +359,7 @@ import {
 const core = createFigmaScraperCore({
   sessionStore: new CookieSessionStore(),
   interactiveLogin: new PlaywrightLogin(),
-  gateway: new PlaywrightFigmaGateway(),
+  gateway: new PlaywrightFigmaNodeSource(),
 });
 
 // First use, expired session, or valid session: same method in all three

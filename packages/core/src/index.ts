@@ -7,7 +7,11 @@ export type {
   InteractiveLogin,
   FigmaFetchResult,
   FigmaNodeSource,
+  ImageExportFormat,
+  FigmaFetchOptions,
+  FigmaFetchRequest,
 } from "./figma/ports";
+export { DEFAULT_FETCH_OPTIONS } from "./figma/ports";
 
 export type {
   FigmaColor,

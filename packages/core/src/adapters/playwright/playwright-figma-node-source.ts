@@ -1,5 +1,5 @@
 import { chromium, type Page, type Locator } from "playwright";
-import type { FigmaSession, FigmaNodeSource, FigmaFetchResult } from "../../figma/ports";
+import type { FigmaNodeSource, FigmaFetchResult, FigmaFetchRequest } from "../../figma/ports";
 import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
@@ -37,11 +37,19 @@ export function shouldAttemptHiddenTextRead(params: {
   return params.childIds.length === 0 && params.supportsHiddenTextChild;
 }
 
+export function shouldCaptureImage(request: FigmaFetchRequest): boolean {
+  return request.image.enabled;
+}
+
+export function shouldCaptureSvg(type: string, request: FigmaFetchRequest): boolean {
+  return request.svg.enabled && canExportAsSvg(type);
+}
+
 export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
-  async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
+  async fetchNode(fileKey: string, nodeId: string, request: FigmaFetchRequest): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
-    return this.withPage(session, url, async (page) => {
-      const readTree = await this.buildNodeReader(page, nodeId);
+    return this.withPage(request, url, async (page) => {
+      const readTree = await this.buildNodeReader(page, nodeId, request);
       if (!readTree) return { status: "incomplete-node-data" };
 
       const node = await readTree(nodeId);
@@ -49,9 +57,9 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     });
   }
 
-  async fetchDefaultPage(fileKey: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
+  async fetchDefaultPage(fileKey: string, request: FigmaFetchRequest): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}`;
-    return this.withPage(session, url, async (page) => {
+    return this.withPage(request, url, async (page) => {
       // The layers panel doesn't expose its own row for the CANVAS node: it
       // only shows the top-level nodes (frames/groups) of the active page.
       // There's no way to read that node directly from the DOM, so it's
@@ -62,7 +70,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
       const topLevelIds = await this.listTopLevelNodeIds(page);
       if (topLevelIds.length === 0) return { status: "not-found-or-no-access" };
 
-      const readTree = await this.buildNodeReader(page, topLevelIds[0]);
+      const readTree = await this.buildNodeReader(page, topLevelIds[0], request);
       if (!readTree) return { status: "incomplete-node-data" };
 
       const children: RawFigmaNode[] = [];
@@ -102,7 +110,8 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
   // page.
   private async buildNodeReader(
     page: Page,
-    seedNodeId: string
+    seedNodeId: string,
+    request: FigmaFetchRequest
   ): Promise<((nodeId: string) => Promise<RawFigmaNode | null>) | null> {
     const seedRow = page.locator(SELECTORS.layerRow(seedNodeId));
     if ((await seedRow.count()) === 0) return null;
@@ -113,7 +122,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
 
     const reader = createPanelReader(mode);
     const assetReader = new FigmaAssetCapturer();
-    return (nodeId: string) => this.readNode(page, nodeId, reader, assetReader);
+    return (nodeId: string) => this.readNode(page, nodeId, reader, assetReader, request);
   }
 
   private async hasSelector(page: Page, selector: string): Promise<boolean> {
@@ -147,7 +156,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
   }
 
   private async withPage(
-    session: FigmaSession,
+    request: FigmaFetchRequest,
     url: string,
     run: (page: Page) => Promise<FigmaFetchResult<RawFigmaNode>>
   ): Promise<FigmaFetchResult<RawFigmaNode>> {
@@ -171,7 +180,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
       await probeContext.close();
 
       const context = await browser.newContext({ userAgent: defaultUserAgent.replace("Headless", "") });
-      await context.addCookies(JSON.parse(session.credential));
+      await context.addCookies(JSON.parse(request.session.credential));
       const page = await context.newPage();
 
       // waitUntil: "domcontentloaded" avoids waiting for Figma's full
@@ -201,7 +210,8 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     page: Page,
     row: Locator,
     reader: PanelReader,
-    assetReader: FigmaAssetCapturer
+    assetReader: FigmaAssetCapturer,
+    request: FigmaFetchRequest
   ): Promise<Omit<RawFigmaNode, "id" | "children">> {
     const panel = page.locator('[data-testid="properties-panel"]');
     const name = await reader.readName(row);
@@ -211,12 +221,18 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     const { width, height } = await reader.readSize(panel);
     const styles = await reader.readStyles(panel);
     const characters = await reader.readCharacters(panel);
-    const image = await assetReader.captureImage(page);
-    const svgCode = canExportAsSvg(type) ? await assetReader.captureSvgCode(page) : null;
+    const image = shouldCaptureImage(request) ? await assetReader.captureImage(page, request.image.format) : null;
+    const svgCode = shouldCaptureSvg(type, request) ? await assetReader.captureSvgCode(page) : null;
     return { name, type, visible, position: { x, y }, size: { width, height }, styles, image, svgCode, characters };
   }
 
-  private async readNode(page: Page, nodeId: string, reader: PanelReader, assetReader: FigmaAssetCapturer): Promise<RawFigmaNode | null> {
+  private async readNode(
+    page: Page,
+    nodeId: string,
+    reader: PanelReader,
+    assetReader: FigmaAssetCapturer,
+    request: FigmaFetchRequest
+  ): Promise<RawFigmaNode | null> {
     const row = page.locator(SELECTORS.layerRow(nodeId));
     if ((await row.count()) === 0) return null;
     // The layers panel virtualizes rows; a row found by count() can become
@@ -250,13 +266,13 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     // Enter/Escape, both of which change the active selection. A deferred
     // read after traversal would capture the wrong node, and a re-click to
     // restore it may fail if the virtual scroll has removed the row.
-    const data = await this.readSelectedNodeData(page, row, reader, assetReader);
+    const data = await this.readSelectedNodeData(page, row, reader, assetReader, request);
 
     const childIds = await this.expandAndListChildren(page, nodeId);
 
     const children: RawFigmaNode[] = [];
     for (const childId of childIds) {
-      const child = await this.readNode(page, childId, reader, assetReader);
+      const child = await this.readNode(page, childId, reader, assetReader, request);
       if (child) children.push(child);
     }
 
@@ -269,7 +285,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
         supportsHiddenTextChild: reader.supportsHiddenTextChild?.() ?? false,
       })
     ) {
-      const hiddenChild = await this.readHiddenTextChild(page, nodeId, reader, assetReader);
+      const hiddenChild = await this.readHiddenTextChild(page, nodeId, reader, assetReader, request);
       if (hiddenChild) children.push(hiddenChild);
     }
 
@@ -310,7 +326,8 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     page: Page,
     parentNodeId: string,
     reader: PanelReader,
-    assetReader: FigmaAssetCapturer
+    assetReader: FigmaAssetCapturer,
+    request: FigmaFetchRequest
   ): Promise<RawFigmaNode | null> {
     await page.keyboard.press("Enter");
 
@@ -334,7 +351,7 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
       return null;
     }
 
-    const data = await this.readSelectedNodeData(page, selectedRow, reader, assetReader);
+    const data = await this.readSelectedNodeData(page, selectedRow, reader, assetReader, request);
 
     await page.keyboard.press("Escape");
     const parentRow = page.locator(SELECTORS.layerRow(parentNodeId));
