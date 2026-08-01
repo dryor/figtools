@@ -151,13 +151,26 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     url: string,
     run: (page: Page) => Promise<FigmaFetchResult<RawFigmaNode>>
   ): Promise<FigmaFetchResult<RawFigmaNode>> {
-    // headless:true triggers Figma's WAF (403 "The request could not be
-    // satisfied" via CloudFront) even with valid session cookies; in
-    // headed mode the same session responds 200. Confirmed by running
-    // both modes against a real session.
-    const browser = await chromium.launch({ headless: false });
+    // Figma's WAF (CloudFront) 403s any request whose User-Agent contains
+    // "HeadlessChrome" -- Chromium's default headless UA, present even in
+    // the "new" headless mode that otherwise renders identically to
+    // headed. Confirmed empirically: same session, same file, headless
+    // with the unmodified UA gets 403 in ~300ms (before any page JS could
+    // run); stripping just "Headless" from it gets 200 in the same time
+    // headed takes. navigator.webdriver is not the trigger -- it's true
+    // in both modes, including the one that succeeds.
+    //
+    // The default UA is read from a throwaway context instead of
+    // hardcoded, so this doesn't drift when Playwright bumps its bundled
+    // Chromium version.
+    const browser = await chromium.launch({ headless: true });
     try {
-      const context = await browser.newContext();
+      const probeContext = await browser.newContext();
+      const probePage = await probeContext.newPage();
+      const defaultUserAgent = await probePage.evaluate(() => navigator.userAgent);
+      await probeContext.close();
+
+      const context = await browser.newContext({ userAgent: defaultUserAgent.replace("Headless", "") });
       await context.addCookies(JSON.parse(session.credential));
       const page = await context.newPage();
 
