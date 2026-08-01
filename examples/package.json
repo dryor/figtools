@@ -1,0 +1,15 @@
+{
+  "name": "examples",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "playwright install chromium",
+    "fetch:json": "figtools \"https://www.figma.com/design/HThrmBFcF8JMNq4q6d8C4T/Empresa-Inc.?node-id=0-1&p=f&t=Ww4o2KpC9cxfIpo9-0\" --format json --output ./empresa-inc/json",
+    "fetch:markdown": "figtools \"https://www.figma.com/design/HThrmBFcF8JMNq4q6d8C4T/Empresa-Inc.?node-id=0-1&p=f&t=Ww4o2KpC9cxfIpo9-0\" --format markdown --output ./empresa-inc/markdown",
+    "fetch": "pnpm run fetch:json && pnpm run fetch:markdown"
+  },
+  "dependencies": {
+    "@figtools/cli": "^0.3.0"
+  }
+}

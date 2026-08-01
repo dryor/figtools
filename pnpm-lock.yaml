@@ -18,6 +18,12 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  examples:
+    dependencies:
+      '@figtools/cli':
+        specifier: ^0.3.0
+        version: 0.3.0
+
   packages/cli:
     dependencies:
       '@figtools/core':
@@ -198,6 +204,17 @@ packages:
 
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
+
+  '@figtools/cli@0.3.0':
+    resolution: {integrity: sha512-UxFVUkG1dIojD/thmIFsUbRkzl1/rWXzkbI5t1jyXg2Yogt/SwZzJ1hg4/q4/NsjJGZDSccRBzrYp6Ne8d6mYg==}
+    engines: {node: '>=24'}
+    hasBin: true
+
+  '@figtools/core@0.2.0':
+    resolution: {integrity: sha512-Sdz5MVAcLgkluAM9OGG5WQi0cktX8ArjQA2I5QoXc/DQSdN6FQnxW940i52LdnO7OE/edT53WDFpaH/inY30zQ==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      playwright: ^1.61.1
 
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
@@ -1410,6 +1427,16 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@figtools/cli@0.3.0':
+    dependencies:
+      '@figtools/core': 0.2.0(playwright@1.61.1)
+      commander: 15.0.0
+      playwright: 1.61.1
+
+  '@figtools/core@0.2.0(playwright@1.61.1)':
+    dependencies:
+      playwright: 1.61.1
 
   '@inquirer/external-editor@1.0.3(@types/node@26.1.1)':
     dependencies:
