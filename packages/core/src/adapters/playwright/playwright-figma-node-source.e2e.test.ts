@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { PlaywrightFigmaGateway } from "./playwright-figma-gateway";
+import { PlaywrightFigmaNodeSource } from "./playwright-figma-gateway";
 import type { RawFigmaNode } from "../../figma/model";
 
 // There's no "golden" fixture defined yet to compare against real data, so
@@ -52,7 +52,7 @@ const RUN_HIDDEN_TEXT_MODE = Boolean(
 
 describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get a specific node from a Figma design (real browser, edit mode)", () => {
   it("fetches real node data, not a stub", async () => {
-    const gateway = new PlaywrightFigmaGateway();
+    const gateway = new PlaywrightFigmaNodeSource();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
     const result = await gateway.fetchNode(process.env.FIGMA_TEST_FILE_KEY!, process.env.FIGMA_TEST_NODE_ID!, session);
@@ -72,7 +72,7 @@ describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get a specific node from
 
 describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get the nodes of the default page in a Figma design (real browser, edit mode)", () => {
   it("fetches the default page with at least one top-level node", async () => {
-    const gateway = new PlaywrightFigmaGateway();
+    const gateway = new PlaywrightFigmaNodeSource();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
     const result = await gateway.fetchDefaultPage(process.env.FIGMA_TEST_FILE_KEY!, session);
@@ -89,7 +89,7 @@ describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get the nodes of the def
 
 describe.skipIf(!RUN_VIEW_MODE)("get_figma_information: Get a specific node from a Figma design with read-only permission (real browser, inspection mode)", () => {
   it("fetches real node data via InspectionPanelReader, not just name/type/visible", async () => {
-    const gateway = new PlaywrightFigmaGateway();
+    const gateway = new PlaywrightFigmaNodeSource();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
     const result = await gateway.fetchNode(process.env.FIGMA_TEST_VIEW_FILE_KEY!, process.env.FIGMA_TEST_VIEW_NODE_ID!, session);
@@ -113,7 +113,7 @@ describe.skipIf(!RUN_VIEW_MODE)("get_figma_information: Get a specific node from
 
 describe.skipIf(!RUN_NO_PANEL_MODE)("get_figma_information: Get a specific node with no data panel available (real browser)", () => {
   it("returns incomplete-node-data status without walking the tree", async () => {
-    const gateway = new PlaywrightFigmaGateway();
+    const gateway = new PlaywrightFigmaNodeSource();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
     const result = await gateway.fetchNode(process.env.FIGMA_TEST_NO_PANEL_FILE_KEY!, process.env.FIGMA_TEST_NO_PANEL_NODE_ID!, session);
@@ -135,7 +135,7 @@ function findNode(node: RawFigmaNode, id: string): RawFigmaNode | null {
 
 describe.skipIf(!RUN_HIDDEN_TEXT_MODE)("get_figma_information: Get a node whose TEXT child never appears in the layers panel (real browser)", () => {
   it("adds the hidden TEXT child as a real node via the Enter/Escape drill-down, with its own styles read", async () => {
-    const gateway = new PlaywrightFigmaGateway();
+    const gateway = new PlaywrightFigmaNodeSource();
     const session = { credential: process.env.FIGMA_TEST_CREDENTIAL! };
 
     // FIGMA_TEST_HIDDEN_TEXT_NODE_ID must be an ancestor of the node with

@@ -28,5 +28,5 @@ export type {
 } from "./figma/errors";
 
 export { CookieSessionStore } from "./adapters/cookie-session-store";
-export { PlaywrightFigmaGateway } from "./adapters/playwright/playwright-figma-gateway";
+export { PlaywrightFigmaNodeSource } from "./adapters/playwright/playwright-figma-node-source";
 export { PlaywrightLogin } from "./adapters/playwright/playwright-login";
