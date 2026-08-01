@@ -117,6 +117,36 @@ describe("parseArgs", () => {
       expect.fail("expected an error result for an unknown flag");
     }
   });
+
+  it("--image-format png sets imageFormat to png", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--image-format", "png"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.imageFormat).toBe("png");
+    }
+  });
+
+  it("imageFormat defaults to png when --image-format is omitted", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.imageFormat).toBe("png");
+    }
+  });
+
+  it("rejects an invalid --image-format value", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--image-format", "gif"]);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && "error" in result) {
+      expect(result.error.code).toBe("COMMANDER_ERROR");
+      expect(result.error.message).toContain("webp, png, jpg");
+    } else {
+      expect.fail("expected an error result for an invalid --image-format value");
+    }
+  });
 });
 
 describe("decideOutputTarget", () => {

@@ -14,10 +14,13 @@ import packageJson from "../package.json" with { type: "json" };
 
 export type OutputFormat = "json" | "markdown";
 
+export type ImageFormat = "webp" | "png" | "jpg";
+
 export interface ParsedArgs {
   urls: string[];
   format: OutputFormat;
   outputPath?: string;
+  imageFormat: ImageFormat;
   quiet: boolean;
   command?: "login";
 }
@@ -47,6 +50,7 @@ export type OutputTarget =
 interface ResolveOpts {
   format: OutputFormat;
   output?: string;
+  imageFormat: ImageFormat;
   quiet: boolean;
 }
 
@@ -79,10 +83,11 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .description("Resolve one or more Figma URLs and write the result")
     .argument("<urls...>", "One or more Figma URLs to resolve")
     .option("--format <format>", "Output format (json or markdown)", parseFormat, "json")
+    .option("--image-format <format>", "Image format for node previews (webp, png, jpg)", parseImageFormat, "png")
     .option("--output <path>", "File or directory to write the result to")
     .option("--quiet", "Suppress progress messages on stderr", false)
     .action((urls: string[], opts: ResolveOpts) => {
-      parsed = { urls, format: opts.format, outputPath: opts.output, quiet: opts.quiet };
+      parsed = { urls, format: opts.format, outputPath: opts.output, imageFormat: opts.imageFormat, quiet: opts.quiet };
     });
   resolveCommand.exitOverride();
 
@@ -90,7 +95,7 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .command("login")
     .description("Force a new interactive login, discarding any saved session")
     .action(() => {
-      parsed = { command: "login", urls: [], format: "json", quiet: false };
+      parsed = { command: "login", urls: [], format: "json", imageFormat: "png", quiet: false };
     });
   loginCommand.exitOverride();
 
@@ -100,6 +105,13 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
 function parseFormat(value: string): OutputFormat {
   if (value !== "json" && value !== "markdown") {
     throw new InvalidArgumentError("Allowed choices are json, markdown.");
+  }
+  return value;
+}
+
+function parseImageFormat(value: string): ImageFormat {
+  if (value !== "webp" && value !== "png" && value !== "jpg") {
+    throw new InvalidArgumentError("Allowed choices are webp, png, jpg.");
   }
   return value;
 }
@@ -175,7 +187,7 @@ async function main(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const { command, urls, format, outputPath, quiet } = parsed.value;
+  const { command, urls, format, outputPath, imageFormat, quiet } = parsed.value;
 
   const core = createFigmaScraperCore({
     sessionStore: new CookieSessionStore(),
@@ -214,7 +226,7 @@ async function main(argv: string[]): Promise<void> {
 
     if (format === "markdown") {
       const dir = outputTarget.kind === "directory" ? outputTarget.path : ".";
-      await writeAsMarkdownTree(fileKey, result.value, { outputDir: dir });
+      await writeAsMarkdownTree(fileKey, result.value, { outputDir: dir, imageFormat });
     } else {
       const writePath =
         outputTarget.kind === "file"

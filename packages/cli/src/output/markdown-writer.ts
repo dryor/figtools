@@ -5,88 +5,178 @@ import { slugifyWithCollisions } from "./slugify";
 
 export interface MarkdownWriterOptions {
   outputDir: string;
+  imageFormat?: "webp" | "png" | "jpg";
 }
 
 function isFigmaPage(result: FigmaScrapeResult): result is FigmaPage {
   return "nodes" in result;
 }
 
+function colorToHex({ r, g, b, a }: FigmaPaint["color"]): string {
+  const hex = [r, g, b]
+    .map((c) => Math.round(c).toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+  return a < 1 ? `#${hex} ${Math.round(a * 100)}%` : `#${hex}`;
+}
+
 function formatPaint(paint: FigmaPaint): string {
-  const { r, g, b, a } = paint.color;
-  const color = `rgba(${r}, ${g}, ${b}, ${a})`;
-  return paint.styleName ? `${paint.styleName} (${color})` : color;
+  const hex = colorToHex(paint.color);
+  return paint.styleName ? `${hex} (${paint.styleName})` : hex;
 }
 
 function formatEffect(effect: FigmaEffect): string {
-  const color = effect.color ? formatPaint({ styleName: null, color: effect.color }) : "no color";
-  return `${effect.type} (x=${effect.x}, y=${effect.y}, blur=${effect.blur}, spread=${effect.spread}, ${color})`;
+  const color = effect.color ? colorToHex(effect.color) : "";
+  return [
+    effect.type,
+    `x=${effect.x}`,
+    `y=${effect.y}`,
+    `blur=${effect.blur}`,
+    `spread=${effect.spread}`,
+    color,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
-function metadataLines(node: FigmaNode): string[] {
+function formatSize(value: number | null, mode: string | undefined): string | null {
+  if (mode === "Fill") return value !== null ? `Fill (${value}px)` : "Fill";
+  if (value === null) return null;
+  if (mode === "Hug") return `Hug (${value}px)`;
+  if (mode === "Fixed") return `Fixed (${value}px)`;
+  return `${value}px`;
+}
+
+// Properties grouped into Figma inspection panel categories, each under its own H2.
+function nodePropertyLines(node: FigmaNode): string[] {
   const lines: string[] = [`type: ${node.type}`];
+  if (!node.visible) lines.push(`visible: false`);
 
-  if (node.characters !== null) {
-    lines.push(`characters: ${node.characters}`);
-  }
+  const {
+    flow,
+    widthSizing,
+    heightSizing,
+    fills,
+    strokes,
+    strokeWeight,
+    strokeSide,
+    cornerRadius,
+    effects,
+    opacity,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
+    itemSpacing,
+    typography,
+  } = node.styles;
 
-  if (node.position.x !== null && node.position.y !== null) {
-    lines.push(`position: x=${node.position.x}, y=${node.position.y}`);
-  }
-  if (node.size.width !== null && node.size.height !== null) {
-    lines.push(`size: width=${node.size.width}, height=${node.size.height}`);
-  }
+  // ## Layout
+  const layoutLines: string[] = [];
+  if (flow) layoutLines.push(`Flow: ${flow}`);
+  if (node.position.x !== null && node.position.y !== null)
+    layoutLines.push(`Position: x=${node.position.x} y=${node.position.y}`);
+  const w = formatSize(node.size.width, widthSizing);
+  const h = formatSize(node.size.height, heightSizing);
+  if (w !== null) layoutLines.push(`Width: ${w}`);
+  if (h !== null) layoutLines.push(`Height: ${h}`);
+  if (paddingTop !== undefined) layoutLines.push(`Padding top: ${paddingTop}px`);
+  if (paddingRight !== undefined) layoutLines.push(`Padding right: ${paddingRight}px`);
+  if (paddingBottom !== undefined) layoutLines.push(`Padding bottom: ${paddingBottom}px`);
+  if (paddingLeft !== undefined) layoutLines.push(`Padding left: ${paddingLeft}px`);
+  if (itemSpacing !== undefined) layoutLines.push(`Gap: ${itemSpacing}px`);
+  if (opacity !== undefined) layoutLines.push(`Opacity: ${opacity}%`);
+  if (layoutLines.length > 0) lines.push("", "## Layout", ...layoutLines);
 
-  const { typography, fills, strokes, effects, ...rest } = node.styles;
-  for (const [key, value] of Object.entries(rest)) {
-    if (value === undefined) continue;
-    lines.push(`${key}: ${value}`);
+  // ## Fill
+  if (fills && fills.length > 0) lines.push("", "## Fill", ...fills.map(formatPaint));
+
+  // ## Border
+  const borderLines: string[] = [];
+  if (strokeWeight !== undefined || (strokes && strokes.length > 0)) {
+    const label = strokeSide ? `Border ${strokeSide.toLowerCase()}` : "Border";
+    const parts: string[] = [];
+    if (strokeWeight !== undefined) parts.push(`${strokeWeight}px`);
+    if (strokes && strokes.length > 0) parts.push(strokes.map(formatPaint).join(", "));
+    borderLines.push(`${label}: ${parts.join(" ")}`);
   }
-  if (fills && fills.length > 0) {
-    lines.push(`fills: ${fills.map(formatPaint).join(", ")}`);
-  }
-  if (strokes && strokes.length > 0) {
-    lines.push(`strokes: ${strokes.map(formatPaint).join(", ")}`);
-  }
+  if (cornerRadius !== undefined) borderLines.push(`Radius: ${cornerRadius}px`);
   if (effects && effects.length > 0) {
-    lines.push(`effects: ${effects.map(formatEffect).join(", ")}`);
+    for (const effect of effects) borderLines.push(formatEffect(effect));
   }
+  if (borderLines.length > 0) lines.push("", "## Border", ...borderLines);
+
+  // ## Typography
   if (typography) {
-    for (const [key, value] of Object.entries(typography)) {
-      if (value === null || value === undefined) continue;
-      lines.push(`typography.${key}: ${value}`);
-    }
+    const typoLines: string[] = [];
+    if (typography.styleName) typoLines.push(`Text style: ${typography.styleName}`);
+    if (typography.fontFamily) typoLines.push(`Font: ${typography.fontFamily}`);
+    if (typography.style) typoLines.push(`Style: ${typography.style}`);
+    if (typography.fontWeight !== null && typography.fontWeight !== undefined)
+      typoLines.push(`Weight: ${typography.fontWeight}`);
+    if (typography.fontSize !== null && typography.fontSize !== undefined)
+      typoLines.push(`Size: ${typography.fontSize}px`);
+    if (typography.lineHeightPx !== null && typography.lineHeightPx !== undefined)
+      typoLines.push(`Line height: ${typography.lineHeightPx}px`);
+    if (typography.letterSpacing !== undefined)
+      typoLines.push(`Letter spacing: ${typography.letterSpacing}`);
+    if (typography.textAlignHorizontal) typoLines.push(`Align: ${typography.textAlignHorizontal}`);
+    if (typography.textAlignVertical) typoLines.push(`Vertical align: ${typography.textAlignVertical}`);
+    if (typoLines.length > 0) lines.push("", "## Typography", ...typoLines);
   }
+
+  // ## Content (text nodes only)
+  if (node.characters !== null) lines.push("", "## Content", node.characters);
 
   return lines;
 }
 
-function leafContent(node: FigmaNode): string {
-  return `# ${node.name}\n\n${metadataLines(node).join("\n")}\n`;
+function mediaHead(node: FigmaNode, slug: string, format: string): string {
+  const lines: string[] = [];
+  if (node.image !== null) lines.push(`![${node.name}](./${slug}.${format})`);
+  if (node.svgCode !== null) lines.push(`[SVG](./${slug}.svg)`);
+  return lines.length > 0 ? `\n\n${lines.join("\n")}` : "";
 }
 
-function containerContent(name: string, children: FigmaNode[], childSlugs: string[]): string {
-  const links = children
-    .map((child, i) => {
-      const slug = childSlugs[i];
-      const href = child.children.length === 0 ? `${slug}.md` : `${slug}/index.md`;
-      return `- [${child.name}](${href})`;
-    })
+function nodeContent(node: FigmaNode, slug: string, format: string): string {
+  return `# ${node.name}${mediaHead(node, slug, format)}\n\n${nodePropertyLines(node).join("\n")}\n`;
+}
+
+function pageContent(name: string, nodes: FigmaNode[], childSlugs: string[]): string {
+  const links = nodes
+    .map((node, i) => `- [${node.name}](${childSlugs[i]}/index.md)`)
     .join("\n");
   return `# ${name}\n\n${links}\n`;
 }
 
-async function writeChildNode(node: FigmaNode, parentDir: string, slug: string): Promise<void> {
+function containerContent(node: FigmaNode, childSlugs: string[], slug: string, format: string): string {
+  const meta = nodePropertyLines(node);
+  const links = node.children
+    .map((child, i) => `- [${child.name}](${childSlugs[i]}/index.md)`)
+    .join("\n");
+  return `# ${node.name}${mediaHead(node, slug, format)}\n\n${meta.join("\n")}\n\n## Children\n\n${links}\n`;
+}
+
+async function writeNodeAssets(node: FigmaNode, dir: string, slug: string, format: string): Promise<void> {
+  if (node.image !== null) await writeFile(join(dir, `${slug}.${format}`), node.image);
+  if (node.svgCode !== null) await writeFile(join(dir, `${slug}.svg`), node.svgCode, "utf8");
+}
+
+async function writeChildNode(node: FigmaNode, parentDir: string, slug: string, options: MarkdownWriterOptions): Promise<void> {
+  const nodeDir = join(parentDir, slug);
+  await mkdir(nodeDir, { recursive: true });
+  const format = options.imageFormat ?? "png";
+  await writeNodeAssets(node, nodeDir, slug, format);
+
   if (node.children.length === 0) {
-    await writeFile(join(parentDir, `${slug}.md`), leafContent(node), "utf8");
+    await writeFile(join(nodeDir, "index.md"), nodeContent(node, slug, format), "utf8");
     return;
   }
 
-  const nodeDir = join(parentDir, slug);
-  await mkdir(nodeDir, { recursive: true });
   const childSlugs = slugifyWithCollisions(node.children.map((c) => c.name));
-  await writeFile(join(nodeDir, "index.md"), containerContent(node.name, node.children, childSlugs), "utf8");
+  await writeFile(join(nodeDir, "index.md"), containerContent(node, childSlugs, slug, format), "utf8");
   for (let i = 0; i < node.children.length; i++) {
-    await writeChildNode(node.children[i], nodeDir, childSlugs[i]);
+    await writeChildNode(node.children[i], nodeDir, childSlugs[i], options);
   }
 }
 
@@ -98,32 +188,35 @@ export async function writeAsMarkdownTree(
   const fileKeyDir = join(options.outputDir, fileKey);
   await mkdir(fileKeyDir, { recursive: true });
 
+  const format = options.imageFormat ?? "png";
+
   if (isFigmaPage(result)) {
     const childSlugs = slugifyWithCollisions(result.nodes.map((n) => n.name));
     await writeFile(
       join(fileKeyDir, "index.md"),
-      containerContent(result.name, result.nodes, childSlugs),
+      pageContent(result.name, result.nodes, childSlugs),
       "utf8",
     );
     for (let i = 0; i < result.nodes.length; i++) {
-      await writeChildNode(result.nodes[i], fileKeyDir, childSlugs[i]);
+      await writeChildNode(result.nodes[i], fileKeyDir, childSlugs[i], options);
     }
     return;
   }
 
+  const [slug] = slugifyWithCollisions([result.name]);
+
   if (result.children.length === 0) {
-    const [slug] = slugifyWithCollisions([result.name]);
-    await writeFile(join(fileKeyDir, `${slug}.md`), leafContent(result), "utf8");
+    const nodeDir = join(fileKeyDir, slug);
+    await mkdir(nodeDir, { recursive: true });
+    await writeNodeAssets(result, nodeDir, slug, format);
+    await writeFile(join(nodeDir, "index.md"), nodeContent(result, slug, format), "utf8");
     return;
   }
 
+  await writeNodeAssets(result, fileKeyDir, slug, format);
   const childSlugs = slugifyWithCollisions(result.children.map((c) => c.name));
-  await writeFile(
-    join(fileKeyDir, "index.md"),
-    containerContent(result.name, result.children, childSlugs),
-    "utf8",
-  );
+  await writeFile(join(fileKeyDir, "index.md"), containerContent(result, childSlugs, slug, format), "utf8");
   for (let i = 0; i < result.children.length; i++) {
-    await writeChildNode(result.children[i], fileKeyDir, childSlugs[i]);
+    await writeChildNode(result.children[i], fileKeyDir, childSlugs[i], options);
   }
 }
