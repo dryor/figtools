@@ -1,3 +1,13 @@
+export interface Position {
+  x: number | null;
+  y: number | null;
+}
+
+export interface Size {
+  width: number | null;
+  height: number | null;
+}
+
 export interface FigmaColor {
   r: number;
   g: number;
@@ -30,9 +40,22 @@ export interface FigmaEffect {
 }
 
 export interface CommonStyles {
+  // "Horizontal" or "Vertical" — the direction shown in Figma's Layout
+  // section. Only present on auto-layout frames; absent on plain groups,
+  // shapes, and text nodes.
+  flow?: string;
+  // Sizing mode for width and height as shown in Figma's Layout section:
+  // "Fixed", "Hug", or "Fill". Absent when the panel doesn't expose a
+  // labeled mode (e.g. non-auto-layout containers where the size is
+  // always fixed and Figma shows no keyword).
+  widthSizing?: string;
+  heightSizing?: string;
   fills?: FigmaPaint[];
   strokes?: FigmaPaint[];
   strokeWeight?: number;
+  // "Right", "Left", "Top", or "Bottom" when the border is asymmetric.
+  // Absent means the border is uniform (all sides).
+  strokeSide?: string;
   cornerRadius?: number;
   effects?: FigmaEffect[];
   opacity?: number;
@@ -79,14 +102,15 @@ export interface FigmaNode {
   // null when the field doesn't exist for this node type/state (e.g. a
   // size input that doesn't render in auto-layout "Fill"/"Hug"), as
   // opposed to a real value of 0.
-  position: { x: number | null; y: number | null };
-  size: { width: number | null; height: number | null };
+  position: Position;
+  size: Size;
   // false if the layer is hidden in Figma (visibility icon off). The node
   // is still included in the tree either way — the consumer decides
   // whether to filter it out.
   visible: boolean;
   styles: CommonStyles & { typography?: TypographyStyles };
-  image: File | null;
+  image: Buffer | null;
+  svgCode: string | null;
   // A TEXT node's literal content, read from the panel's own "Content"
   // section — distinct from `name`, the layer's editable label, which can
   // diverge from what the text actually says. null for non-TEXT nodes.
@@ -94,7 +118,7 @@ export interface FigmaNode {
   // Some TEXT nodes never appear in the layers panel tree at all
   // (confirmed in a real session) and are only reachable via a keyboard
   // drill-down while their parent is selected (see
-  // PlaywrightFigmaGateway.readHiddenTextChild) — those are still added
+  // PlaywrightFigmaNodeSource.readHiddenTextChild) — those are still added
   // as a real node under `children`, with their own id/size/styles/
   // characters read in full while the drill-down has them selected, not
   // folded into the parent's own fields.
@@ -114,11 +138,12 @@ export interface RawFigmaNode {
   id: string;
   name: string;
   type: string;
-  position: { x: number | null; y: number | null };
-  size: { width: number | null; height: number | null };
+  position: Position;
+  size: Size;
   visible: boolean;
   styles: CommonStyles & { typography?: TypographyStyles };
-  image: File | null;
+  image: Buffer | null;
+  svgCode: string | null;
   characters: string | null;
   children: RawFigmaNode[];
 }

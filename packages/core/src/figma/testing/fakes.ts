@@ -1,4 +1,4 @@
-import type { FigmaSession, SessionStore, InteractiveLogin, FigmaGateway, FigmaFetchResult } from "../ports";
+import type { FigmaSession, SessionStore, InteractiveLogin, FigmaNodeSource, FigmaFetchResult } from "../ports";
 import type { RawFigmaNode } from "../model";
 
 export function createFakeSessionStore(initial: FigmaSession | null = null) {
@@ -28,7 +28,7 @@ export function createFakeInteractiveLogin(session: FigmaSession) {
 export function createFakeGateway(responses: {
   fetchNode?: (fileKey: string, nodeId: string) => FigmaFetchResult<RawFigmaNode>;
   fetchDefaultPage?: (fileKey: string) => FigmaFetchResult<RawFigmaNode>;
-}): FigmaGateway {
+}): FigmaNodeSource {
   return {
     async fetchNode(fileKey, nodeId) {
       return responses.fetchNode ? responses.fetchNode(fileKey, nodeId) : { status: "not-found-or-no-access" };

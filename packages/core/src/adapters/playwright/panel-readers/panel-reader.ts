@@ -1,5 +1,5 @@
 import type { Locator } from "playwright";
-import type { CommonStyles, TypographyStyles } from "../../../figma/model";
+import type { CommonStyles, TypographyStyles, Position, Size } from "../../../figma/model";
 
 // Each method receives the already-selected layers panel row and/or
 // properties panel; the PanelReader doesn't navigate or click, it only
@@ -8,8 +8,8 @@ export interface PanelReader {
   readName(row: Locator): Promise<string>;
   readType(row: Locator): Promise<string>;
   readVisible(row: Locator): Promise<boolean>;
-  readPosition(panel: Locator): Promise<{ x: number | null; y: number | null }>;
-  readSize(panel: Locator): Promise<{ width: number | null; height: number | null }>;
+  readPosition(panel: Locator): Promise<Position>;
+  readSize(panel: Locator): Promise<Size>;
   readStyles(panel: Locator): Promise<CommonStyles & { typography?: TypographyStyles }>;
   // A TEXT node's literal content. null for any other node type, or when
   // it can't be read.
