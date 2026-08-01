@@ -7,6 +7,7 @@ import {
   CookieSessionStore,
   PlaywrightFigmaNodeSource,
   PlaywrightLogin,
+  type ImageExportFormat,
 } from "@figtools/core";
 import { resolveAll } from "./resolve-all";
 import { writeAsJson } from "./output/json-writer";
@@ -15,13 +16,23 @@ import packageJson from "../package.json" with { type: "json" };
 
 export type OutputFormat = "json" | "markdown";
 
-export type ImageFormat = "webp" | "png" | "jpg";
+// 1:1 with what Figma's export panel actually offers (PNG, JPEG, PDF —
+// confirmed in @figtools/core's figma-asset-capturer.ts). "webp" was
+// dropped: it isn't a real Figma export option, so it used to silently
+// write PNG bytes under a .webp extension.
+export type ImageFormat = "png" | "jpg" | "pdf";
+
+const IMAGE_EXPORT_FORMATS: Record<ImageFormat, ImageExportFormat> = { png: "PNG", jpg: "JPEG", pdf: "PDF" };
 
 export interface ParsedArgs {
   urls: string[];
   format: OutputFormat;
   outputPath?: string;
   imageFormat: ImageFormat;
+  // Off by default, matching @figtools/core's DEFAULT_FETCH_OPTIONS — a
+  // deliberate choice, not an oversight (see ADR-figtools-cli.md).
+  images: boolean;
+  icons: boolean;
   quiet: boolean;
   command?: "login";
 }
@@ -52,6 +63,8 @@ interface ResolveOpts {
   format: OutputFormat;
   output?: string;
   imageFormat: ImageFormat;
+  images: boolean;
+  icons: boolean;
   quiet: boolean;
 }
 
@@ -84,11 +97,21 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .description("Resolve one or more Figma URLs and write the result")
     .argument("<urls...>", "One or more Figma URLs to resolve")
     .option("--format <format>", "Output format (json or markdown)", parseFormat, "json")
-    .option("--image-format <format>", "Image format for node previews (webp, png, jpg)", parseImageFormat, "png")
+    .option("--image-format <format>", "Image format for node previews (png, jpg, pdf)", parseImageFormat, "png")
+    .option("--images", "Capture a preview image for each node (off by default)", false)
+    .option("--icons", "Capture SVG code for exportable nodes (off by default)", false)
     .option("--output <path>", "File or directory to write the result to")
     .option("--quiet", "Suppress progress messages on stderr", false)
     .action((urls: string[], opts: ResolveOpts) => {
-      parsed = { urls, format: opts.format, outputPath: opts.output, imageFormat: opts.imageFormat, quiet: opts.quiet };
+      parsed = {
+        urls,
+        format: opts.format,
+        outputPath: opts.output,
+        imageFormat: opts.imageFormat,
+        images: opts.images,
+        icons: opts.icons,
+        quiet: opts.quiet,
+      };
     });
   resolveCommand.exitOverride();
 
@@ -96,7 +119,7 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .command("login")
     .description("Force a new interactive login, discarding any saved session")
     .action(() => {
-      parsed = { command: "login", urls: [], format: "json", imageFormat: "png", quiet: false };
+      parsed = { command: "login", urls: [], format: "json", imageFormat: "png", images: false, icons: false, quiet: false };
     });
   loginCommand.exitOverride();
 
@@ -111,8 +134,8 @@ function parseFormat(value: string): OutputFormat {
 }
 
 function parseImageFormat(value: string): ImageFormat {
-  if (value !== "webp" && value !== "png" && value !== "jpg") {
-    throw new InvalidArgumentError("Allowed choices are webp, png, jpg.");
+  if (value !== "png" && value !== "jpg" && value !== "pdf") {
+    throw new InvalidArgumentError("Allowed choices are png, jpg, pdf.");
   }
   return value;
 }
@@ -188,7 +211,7 @@ async function main(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const { command, urls, format, outputPath, imageFormat, quiet } = parsed.value;
+  const { command, urls, format, outputPath, imageFormat, images, icons, quiet } = parsed.value;
 
   const core = createFigmaScraperCore({
     sessionStore: new CookieSessionStore(),
@@ -214,7 +237,10 @@ async function main(argv: string[]): Promise<void> {
 
   if (!quiet) process.stderr.write(`Resolving ${urls.length} URL(s)...\n`);
 
-  const resolutions = await resolveAll(core, urls);
+  const resolutions = await resolveAll(core, urls, {
+    image: { enabled: images, format: IMAGE_EXPORT_FORMATS[imageFormat] },
+    icons: { enabled: icons },
+  });
 
   let hadFailure = false;
   for (const { url, result } of resolutions) {

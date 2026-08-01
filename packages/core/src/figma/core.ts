@@ -1,6 +1,15 @@
 import type { FigmaScrapeResult, RawFigmaNode } from "./model";
 import type { Result, FigmaScraperError } from "./errors";
-import type { FigmaSession, SessionStore, InteractiveLogin, FigmaNodeSource, FigmaFetchResult } from "./ports";
+import type {
+  FigmaSession,
+  SessionStore,
+  InteractiveLogin,
+  FigmaNodeSource,
+  FigmaFetchResult,
+  FigmaFetchOptions,
+  FigmaFetchRequest,
+} from "./ports";
+import { DEFAULT_FETCH_OPTIONS } from "./ports";
 import { resolve } from "./build-tree";
 
 export interface FigmaScraperCoreDeps {
@@ -10,7 +19,10 @@ export interface FigmaScraperCoreDeps {
 }
 
 export interface FigmaScraperCore {
-  resolveUrl(url: string): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
+  // overrides merges onto DEFAULT_FETCH_OPTIONS (image/svg capture off by
+  // default) — see ports.ts for why the fields are required past this
+  // one boundary.
+  resolveUrl(url: string, overrides?: Partial<FigmaFetchOptions>): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
   // Triggers login only if there's no saved session. Unlike
   // reauthenticate(), it doesn't force a new login if the current session
@@ -61,20 +73,24 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
     return existing ?? login();
   }
 
-  function fetchRaw(parsed: ParsedFigmaUrl, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
+  function fetchRaw(parsed: ParsedFigmaUrl, request: FigmaFetchRequest): Promise<FigmaFetchResult<RawFigmaNode>> {
     return parsed.nodeId
-      ? deps.gateway.fetchNode(parsed.fileKey, parsed.nodeId, session)
-      : deps.gateway.fetchDefaultPage(parsed.fileKey, session);
+      ? deps.gateway.fetchNode(parsed.fileKey, parsed.nodeId, request)
+      : deps.gateway.fetchDefaultPage(parsed.fileKey, request);
   }
 
   return {
-    async resolveUrl(url) {
+    async resolveUrl(url, overrides) {
       const parsedResult = parseFigmaUrl(url);
       if (!parsedResult.ok) return parsedResult;
       const parsed = parsedResult.value;
 
+      // Resolved once, here — everything downstream of this point gets a
+      // fully-formed FigmaFetchRequest, never a partial one.
+      const opts: FigmaFetchOptions = { ...DEFAULT_FETCH_OPTIONS, ...overrides };
+
       const session = await loadOrLogin();
-      let fetchResult = await fetchRaw(parsed, session);
+      let fetchResult = await fetchRaw(parsed, { session, ...opts });
 
       if (fetchResult.status === "session-expired") {
         let renewed: FigmaSession;
@@ -83,7 +99,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
         } catch {
           return { ok: false, error: { code: "AUTHENTICATION_FAILED", message: "Couldn't log in" } };
         }
-        fetchResult = await fetchRaw(parsed, renewed);
+        fetchResult = await fetchRaw(parsed, { session: renewed, ...opts });
       }
 
       if (fetchResult.status === "not-found-or-no-access") {

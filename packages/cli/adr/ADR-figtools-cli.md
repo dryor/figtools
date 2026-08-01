@@ -191,11 +191,32 @@ headed browsers at once.
   `program.parse()` returns, since commander has no single object that
   reports "which subcommand ended up running" ahead of time.
 
+- **`--images`/`--icons` as opt-in flags, not a negatable `--no-`.** Image
+  and SVG capture are off by default (`@figtools/core`'s
+  `DEFAULT_FETCH_OPTIONS`, see `ADR-figtools-core.md`) — both are a real
+  cost (a full Figma export-panel round-trip per node), so the CLI
+  shouldn't pay for them unless asked. commander's negatable idiom
+  (`--no-x`, defaulting `x` to `true`) is for flags that default *on*;
+  since these default *off*, plain boolean flags (`.option("--images", ...,
+  false)`) are the correct fit, not a negation of something already true.
+  `--icons` maps to core's `FigmaFetchOptions.icons.enabled` — "icons"
+  end to end, naming what a caller is asking for at both the CLI and the
+  library boundary. The captured data itself is still SVG markup
+  (`RawFigmaNode.svgCode`), and the capture mechanism
+  (`captureSvgCode`/`canExportAsSvg` in `@figtools/core`) still talks
+  about SVG, since that's literally the format — only the opt-in toggle
+  is named for intent rather than format. `--image-format` (`png`/`jpg`/`pdf`
+  — matching the formats Figma's export panel actually offers, dropping
+  the previous `webp`, which wasn't a real export option and silently
+  produced PNG bytes under a `.webp` extension) only has an effect when
+  `--images` is also passed.
+
 - **Relationships:**
   - `DERIVES_FROM` [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
   - `RELATED_TO` [`packages/core/adr/ADR-figtools-core.md`](../../core/adr/ADR-figtools-core.md)
     — this ADR extends the public contract of `FigmaScraperCore` defined
-    there, adding `ensureSession()`.
+    there, adding `ensureSession()`, and forwards its `FigmaFetchOptions`
+    through `--images`/`--icons`/`--image-format`.
 
 ## Interfaces
 
@@ -226,6 +247,7 @@ import type {
   FigmaScrapeResult,
   FigmaNode,
   FigmaScraperError,
+  FigmaFetchOptions,
   Result,
 } from "@figtools/core";
 
@@ -248,10 +270,17 @@ export function slugifyWithCollisions(names: string[]): string[];
 // packages/cli/src/cli.ts
 export type OutputFormat = "json" | "markdown";
 
+// Matches what Figma's export panel actually offers (PNG/JPEG/PDF).
+export type ImageFormat = "png" | "jpg" | "pdf";
+
 export interface ParsedArgs {
   urls: string[];
   format: OutputFormat;
   outputPath?: string;
+  imageFormat: ImageFormat; // "png" | "jpg" | "pdf"
+  // Off by default (see the "--images/--icons as opt-in flags" decision above).
+  images: boolean;
+  icons: boolean; // --icons; maps to core's FigmaFetchOptions.icons.enabled
   quiet: boolean;
   command?: "login";
 }
@@ -296,6 +325,7 @@ export function decideOutputTarget(
 // packages/cli/src/output/markdown-writer.ts
 export interface MarkdownWriterOptions {
   outputDir: string;
+  imageFormat?: "png" | "jpg" | "pdf";
 }
 // Walks a FigmaScrapeResult's tree and writes the folder/file tree described
 // in the spec (index.md for the root node, leaf node = file, node with
@@ -325,17 +355,18 @@ export interface UrlResolution {
 
 // Secures the session once, and only then resolves the N URLs
 // concurrently (Promise.allSettled), not in real parallel: Node.js is
-// single-threaded.
+// single-threaded. opts forwards straight to core.resolveUrl for every URL.
 export async function resolveAll(
   core: FigmaScraperCore,
   urls: string[],
+  opts?: Partial<FigmaFetchOptions>,
 ): Promise<UrlResolution[]>;
 ```
 
 ### Usage example
 
 ```typescript
-import { createFigmaScraperCore, PlaywrightFigmaGateway, PlaywrightLogin, CookieSessionStore } from "@figtools/core";
+import { createFigmaScraperCore, PlaywrightFigmaNodeSource, PlaywrightLogin, CookieSessionStore } from "@figtools/core";
 import { resolveAll } from "./resolve-all";
 import { writeAsJson } from "./output/json-writer";
 import { writeAsMarkdownTree } from "./output/markdown-writer";
@@ -343,7 +374,7 @@ import { writeAsMarkdownTree } from "./output/markdown-writer";
 const core = createFigmaScraperCore({
   sessionStore: new CookieSessionStore(),
   interactiveLogin: new PlaywrightLogin(),
-  gateway: new PlaywrightFigmaGateway(),
+  gateway: new PlaywrightFigmaNodeSource(),
 });
 
 // resolveAll secures the session once inside, before resolving the URLs

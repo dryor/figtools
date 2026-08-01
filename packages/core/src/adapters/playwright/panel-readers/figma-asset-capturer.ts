@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import type { ImageExportFormat } from "../../../figma/ports";
 
 // Figma types confirmed or expected to have SVG as an export option.
 // The type strings are what Figma shows in the inspection panel (lowercase
@@ -17,8 +18,8 @@ export function canExportAsSvg(type: string): boolean {
 }
 
 export class FigmaAssetCapturer {
-  async captureImage(page: Page): Promise<Buffer | null> {
-    return this.captureFromExportPanel(page, "PNG");
+  async captureImage(page: Page, format: ImageExportFormat): Promise<Buffer | null> {
+    return this.captureFromExportPanel(page, format);
   }
 
   // Returns null when the downloaded content doesn't contain an <svg> tag
@@ -42,7 +43,7 @@ export class FigmaAssetCapturer {
   // try/finally around the download ensures the Remove always runs — even on
   // timeout — to prevent accumulated dangling export entries across a full
   // tree traversal.
-  private async captureFromExportPanel(page: Page, format: "PNG" | "SVG"): Promise<Buffer | null> {
+  private async captureFromExportPanel(page: Page, format: ImageExportFormat | "SVG"): Promise<Buffer | null> {
     const propertiesPanel = page.locator('[data-testid="properties-panel"]');
     const exportPanel = page.locator('[data-testid="export-inspection-panel"]');
 
@@ -61,8 +62,10 @@ export class FigmaAssetCapturer {
       if (!removeMaterialized) return null;
 
       try {
-        if (format === "SVG") {
-          // Default format after Add is PNG; open the dropdown and pick SVG.
+        if (format !== "PNG") {
+          // Default format after Add is PNG; open the dropdown and pick
+          // whichever format was requested (PNG never needs this branch,
+          // since it's already the state left by Add).
           const fmtBtn = exportPanel.locator("button").filter({ hasText: "PNG" }).last();
           if ((await fmtBtn.count()) === 0) return null;
           // Set up the overlay wait BEFORE clicking so a fast-appearing
@@ -72,12 +75,12 @@ export class FigmaAssetCapturer {
           await fmtBtn.click();
           const overlayVisible = await overlayWait.then(() => true).catch(() => false);
           if (!overlayVisible) return null;
-          const svgOption = overlay.locator('[role="option"]').filter({ hasText: "SVG" }).first();
-          if ((await svgOption.count()) === 0) {
+          const formatOption = overlay.locator('[role="option"]').filter({ hasText: format }).first();
+          if ((await formatOption.count()) === 0) {
             await page.keyboard.press("Escape");
             return null;
           }
-          await svgOption.click();
+          await formatOption.click();
           // Wait for the overlay to close before proceeding.
           try { await overlay.waitFor({ state: "detached", timeout: 3000 }); } catch {}
         }

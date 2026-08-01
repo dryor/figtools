@@ -142,9 +142,45 @@ describe("parseArgs", () => {
     expect(result.ok).toBe(false);
     if (!result.ok && "error" in result) {
       expect(result.error.code).toBe("COMMANDER_ERROR");
-      expect(result.error.message).toContain("webp, png, jpg");
+      expect(result.error.message).toContain("png, jpg, pdf");
     } else {
       expect.fail("expected an error result for an invalid --image-format value");
+    }
+  });
+
+  it("images defaults to false when --images is omitted", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.images).toBe(false);
+    }
+  });
+
+  it("--images sets images to true", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--images"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.images).toBe(true);
+    }
+  });
+
+  it("icons defaults to false when --icons is omitted", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.icons).toBe(false);
+    }
+  });
+
+  it("--icons sets icons to true", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--icons"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.icons).toBe(true);
     }
   });
 });

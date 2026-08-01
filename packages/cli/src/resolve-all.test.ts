@@ -126,6 +126,17 @@ describe("resolveAll", () => {
     expect(core.resolveUrl).not.toHaveBeenCalled();
   });
 
+  it("forwards the given opts to core.resolveUrl for every URL", async () => {
+    const core = createFakeCore();
+    const opts = { image: { enabled: true, format: "JPEG" as const }, icons: { enabled: true } };
+    const urls = ["https://www.figma.com/design/AAA", "https://www.figma.com/design/BBB"];
+
+    await resolveAll(core, urls, opts);
+
+    expect(core.resolveUrl).toHaveBeenNthCalledWith(1, urls[0], opts);
+    expect(core.resolveUrl).toHaveBeenNthCalledWith(2, urls[1], opts);
+  });
+
   it("marks all URLs with the session error if ensureSession fails", async () => {
     const sessionError: FigmaScraperError = { code: "AUTHENTICATION_FAILED", message: "couldn't log in" };
     const core = createFakeCore({
