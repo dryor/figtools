@@ -4,8 +4,8 @@ import { canExportAsSvg } from "./figma-asset-capturer";
 import { CookieSessionStore } from "../../cookie-session-store";
 import type { RawFigmaNode } from "../../../figma/model";
 
-const FILE_KEY = process.env.FIGMA_TEST_FILE_KEY ?? "HThrmBFcF8JMNq4q6d8C4T";
-const NODE_ID = process.env.FIGMA_TEST_NODE_ID ?? "2:5";
+const FILE_KEY = "HThrmBFcF8JMNq4q6d8C4T";
+const NODE_ID = "2:5";
 
 function findFirst(node: RawFigmaNode, predicate: (n: RawFigmaNode) => boolean): RawFigmaNode | undefined {
   if (predicate(node)) return node;
