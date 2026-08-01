@@ -4,7 +4,7 @@ import { Command, CommanderError, InvalidArgumentError } from "commander";
 import {
   createFigmaScraperCore,
   CookieSessionStore,
-  PlaywrightFigmaGateway,
+  PlaywrightFigmaNodeSource,
   PlaywrightLogin,
 } from "@figtools/core";
 import { resolveAll } from "./resolve-all";
@@ -180,7 +180,7 @@ async function main(argv: string[]): Promise<void> {
   const core = createFigmaScraperCore({
     sessionStore: new CookieSessionStore(),
     interactiveLogin: new PlaywrightLogin(),
-    gateway: new PlaywrightFigmaGateway(),
+    gateway: new PlaywrightFigmaNodeSource(),
   });
 
   if (command === "login") {

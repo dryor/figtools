@@ -4,7 +4,7 @@ import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
 import { createPanelReader } from "./panel-readers/create-panel-reader";
-import { diffRowIds } from "./layer-snapshot-diff";
+import { FigmaAssetCapturer, canExportAsSvg } from "./panel-readers/figma-asset-capturer";
 
 // Selectors confirmed by running against a real figma.com session (see
 // .env: FIGMA_TEST_CREDENTIAL / FIGMA_TEST_FILE_KEY, and FIGMA_TEST_VIEW_*
@@ -37,11 +37,11 @@ export function shouldAttemptHiddenTextRead(params: {
   return params.childIds.length === 0 && params.supportsHiddenTextChild;
 }
 
-export class PlaywrightFigmaGateway implements FigmaNodeSource {
+export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
   async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
     return this.withPage(session, url, async (page) => {
-      const readTree = await this.startReading(page, nodeId);
+      const readTree = await this.buildNodeReader(page, nodeId);
       if (!readTree) return { status: "incomplete-node-data" };
 
       const node = await readTree(nodeId);
@@ -62,7 +62,7 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
       const topLevelIds = await this.listTopLevelNodeIds(page);
       if (topLevelIds.length === 0) return { status: "not-found-or-no-access" };
 
-      const readTree = await this.startReading(page, topLevelIds[0]);
+      const readTree = await this.buildNodeReader(page, topLevelIds[0]);
       if (!readTree) return { status: "incomplete-node-data" };
 
       const children: RawFigmaNode[] = [];
@@ -100,7 +100,7 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
   // on screen, and the resulting PanelReader is reused for the rest of
   // the tree — the mode doesn't change across nodes of the same loaded
   // page.
-  private async startReading(
+  private async buildNodeReader(
     page: Page,
     seedNodeId: string
   ): Promise<((nodeId: string) => Promise<RawFigmaNode | null>) | null> {
@@ -112,7 +112,8 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
     if (mode === "none") return null;
 
     const reader = createPanelReader(mode);
-    return (nodeId: string) => this.readNode(page, nodeId, reader);
+    const assetReader = new FigmaAssetCapturer();
+    return (nodeId: string) => this.readNode(page, nodeId, reader, assetReader);
   }
 
   private async hasSelector(page: Page, selector: string): Promise<boolean> {
@@ -160,7 +161,12 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
       await context.addCookies(JSON.parse(session.credential));
       const page = await context.newPage();
 
-      const response = await page.goto(url);
+      // waitUntil: "domcontentloaded" avoids waiting for Figma's full
+      // asset bundle (WebGL shaders, fonts, etc.) which pushes the
+      // "load" event past 30s on slower connections — confirmed needed
+      // when running fresh browser contexts against the real file.
+      // The layers panel selector below is the real readiness gate.
+      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
       if (response && (response.status() === 401 || response.status() === 403)) {
         return { status: "session-expired" };
       }
@@ -171,28 +177,19 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
       // properties-panel exists in the DOM even with no selection; what
       // marks the file as done loading is that the layers panel already
       // has at least one row.
-      await page.waitForSelector('[data-testid$="-layers-panel-row"]');
+      await page.waitForSelector('[data-testid$="-layers-panel-row"]', { timeout: 90_000 });
       return await run(page);
     } finally {
       await browser.close();
     }
   }
 
-  private async readNode(page: Page, nodeId: string, reader: PanelReader): Promise<RawFigmaNode | null> {
-    const row = page.locator(SELECTORS.layerRow(nodeId));
-    if ((await row.count()) === 0) return null;
-    await row.click();
-    // The properties panel doesn't always finish re-rendering by the time
-    // the next read starts — confirmed intermittently on a real tree: the
-    // same full traversal sometimes read a node's styles as completely
-    // empty (cornerRadius/fills both missing) despite both being present
-    // moments later on a retry, most often right after a node whose
-    // sibling just went through the Enter/Escape hidden-text drill-down
-    // (readHiddenTextChild), which leaves the panel in extra flux. A short
-    // fixed wait here is cheaper than adding a stability check to every
-    // individual read* method.
-    await page.waitForTimeout(150);
-
+  private async readSelectedNodeData(
+    page: Page,
+    row: Locator,
+    reader: PanelReader,
+    assetReader: FigmaAssetCapturer
+  ): Promise<Omit<RawFigmaNode, "id" | "children">> {
     const panel = page.locator('[data-testid="properties-panel"]');
     const name = await reader.readName(row);
     const type = await reader.readType(row);
@@ -201,12 +198,52 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
     const { width, height } = await reader.readSize(panel);
     const styles = await reader.readStyles(panel);
     const characters = await reader.readCharacters(panel);
+    const image = await assetReader.captureImage(page);
+    const svgCode = canExportAsSvg(type) ? await assetReader.captureSvgCode(page) : null;
+    return { name, type, visible, position: { x, y }, size: { width, height }, styles, image, svgCode, characters };
+  }
+
+  private async readNode(page: Page, nodeId: string, reader: PanelReader, assetReader: FigmaAssetCapturer): Promise<RawFigmaNode | null> {
+    const row = page.locator(SELECTORS.layerRow(nodeId));
+    if ((await row.count()) === 0) return null;
+    // The layers panel virtualizes rows; a row found by count() can become
+    // unstable (virtual scroll re-renders) before the click lands. A normal
+    // click retries for up to 5s, which covers transient flapping. If it
+    // still fails after 5s, force:true bypasses the stability wait as a
+    // fallback — same pattern used for the expand caret.
+    try {
+      await row.click({ timeout: 5000 });
+    } catch {
+      await page.waitForTimeout(300);
+      if ((await row.count()) === 0) return null;
+      try { await row.click({ force: true, timeout: 5000 }); } catch { return null; }
+    }
+    // The properties panel doesn't always finish re-rendering by the time
+    // the next read starts — confirmed intermittently on a real tree: the
+    // same full traversal sometimes read a node's styles as completely
+    // empty (cornerRadius/fills both missing) despite both being present
+    // moments later on a retry, most often right after a node whose
+    // sibling just went through the Enter/Escape hidden-text drill-down
+    // (readHiddenTextChild), which leaves the panel in extra flux. A fixed
+    // wait here is cheaper than adding a stability check to every individual
+    // read* method. 150ms was observed to be insufficient in some sessions
+    // (panel still showed the previously-selected node's data), confirmed by
+    // getting wrong width/flow values for Aside when the root was the prior
+    // selection; 500ms reliably covers observed update latencies.
+    await page.waitForTimeout(500);
+
+    // All panel data must be read while this node is selected — child
+    // traversal below clicks other rows, and readHiddenTextChild presses
+    // Enter/Escape, both of which change the active selection. A deferred
+    // read after traversal would capture the wrong node, and a re-click to
+    // restore it may fail if the virtual scroll has removed the row.
+    const data = await this.readSelectedNodeData(page, row, reader, assetReader);
 
     const childIds = await this.expandAndListChildren(page, nodeId);
 
     const children: RawFigmaNode[] = [];
     for (const childId of childIds) {
-      const child = await this.readNode(page, childId, reader);
+      const child = await this.readNode(page, childId, reader, assetReader);
       if (child) children.push(child);
     }
 
@@ -219,23 +256,11 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
         supportsHiddenTextChild: reader.supportsHiddenTextChild?.() ?? false,
       })
     ) {
-      const hiddenChild = await this.readHiddenTextChild(page, nodeId, reader);
+      const hiddenChild = await this.readHiddenTextChild(page, nodeId, reader, assetReader);
       if (hiddenChild) children.push(hiddenChild);
     }
 
-    return {
-      id: nodeId,
-      name,
-      type,
-      position: { x, y },
-      size: { width, height },
-      visible,
-      styles,
-      image: null,
-      svgCode: null,
-      characters,
-      children,
-    };
+    return { id: nodeId, ...data, children };
   }
 
   // Confirmed in a real session on two different nodes (a parent with no
@@ -271,7 +296,8 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
   private async readHiddenTextChild(
     page: Page,
     parentNodeId: string,
-    reader: PanelReader
+    reader: PanelReader,
+    assetReader: FigmaAssetCapturer
   ): Promise<RawFigmaNode | null> {
     await page.keyboard.press("Enter");
 
@@ -287,31 +313,28 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
       return null;
     }
 
-    const panel = page.locator('[data-testid="properties-panel"]');
-    const name = await reader.readName(selectedRow);
-    const type = await reader.readType(selectedRow);
-    const visible = await reader.readVisible(selectedRow);
-    const { x, y } = await reader.readPosition(panel);
-    const { width, height } = await reader.readSize(panel);
-    const styles = await reader.readStyles(panel);
-    const characters = await reader.readCharacters(panel);
+    // If Enter didn't change the selection (childId === parentNodeId), there's
+    // no hidden child to read — the same parent row was selected before and
+    // after. Press Escape to restore clean state and bail.
+    if (childId === parentNodeId) {
+      await page.keyboard.press("Escape");
+      return null;
+    }
+
+    const data = await this.readSelectedNodeData(page, selectedRow, reader, assetReader);
 
     await page.keyboard.press("Escape");
-    await page.locator(SELECTORS.layerRow(parentNodeId)).click();
+    const parentRow = page.locator(SELECTORS.layerRow(parentNodeId));
+    try {
+      await parentRow.click({ timeout: 5000 });
+    } catch {
+      await page.waitForTimeout(300);
+      if ((await parentRow.count()) > 0) {
+        try { await parentRow.click({ force: true, timeout: 5000 }); } catch {}
+      }
+    }
 
-    return {
-      id: childId,
-      name,
-      type,
-      position: { x, y },
-      size: { width, height },
-      visible,
-      styles,
-      image: null,
-      svgCode: null,
-      characters,
-      children: [],
-    };
+    return { id: childId, ...data, children: [] };
   }
 
   // The layers panel is virtualized: a collapsed node's children don't
@@ -347,7 +370,14 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
 
     let childIds: string[] = [];
     for (let attempt = 0; attempt < 8; attempt++) {
-      if ((await treeRow.getAttribute("aria-expanded")) !== "true") {
+      // Use page.evaluate for the aria-expanded read to avoid Playwright's
+      // stability wait timing out when the virtual scroll detaches the row.
+      const expanded = await page.evaluate((id: string) => {
+        const content = document.querySelector(`[data-testid="${id}-layers-panel-row"]`);
+        if (!content) return null;
+        return content.closest('[role="row"]')?.getAttribute("aria-expanded") ?? null;
+      }, nodeId);
+      if (expanded !== "true") {
         await caret.click({ force: true });
       }
       await page.waitForTimeout(200);
@@ -387,4 +417,5 @@ export class PlaywrightFigmaGateway implements FigmaNodeSource {
       return childIds;
     }, nodeId);
   }
+
 }
