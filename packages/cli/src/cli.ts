@@ -32,7 +32,10 @@ export interface ParsedArgs {
   // Off by default, matching @figtools/core's DEFAULT_FETCH_OPTIONS — a
   // deliberate choice, not an oversight (see ADR-figtools-cli.md).
   images: boolean;
-  svg: boolean;
+  // Maps to core's FigmaFetchOptions.svg.enabled — named "icons" at the
+  // CLI boundary since that's what a user asks for; "svg" is the accurate
+  // name for the underlying Figma export mechanism, kept as-is in core.
+  icons: boolean;
   quiet: boolean;
   command?: "login";
 }
@@ -64,7 +67,7 @@ interface ResolveOpts {
   output?: string;
   imageFormat: ImageFormat;
   images: boolean;
-  svg: boolean;
+  icons: boolean;
   quiet: boolean;
 }
 
@@ -99,7 +102,7 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .option("--format <format>", "Output format (json or markdown)", parseFormat, "json")
     .option("--image-format <format>", "Image format for node previews (png, jpg, pdf)", parseImageFormat, "png")
     .option("--images", "Capture a preview image for each node (off by default)", false)
-    .option("--svg", "Capture SVG code for exportable nodes (off by default)", false)
+    .option("--icons", "Capture SVG code for exportable nodes (off by default)", false)
     .option("--output <path>", "File or directory to write the result to")
     .option("--quiet", "Suppress progress messages on stderr", false)
     .action((urls: string[], opts: ResolveOpts) => {
@@ -109,7 +112,7 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
         outputPath: opts.output,
         imageFormat: opts.imageFormat,
         images: opts.images,
-        svg: opts.svg,
+        icons: opts.icons,
         quiet: opts.quiet,
       };
     });
@@ -119,7 +122,7 @@ function createProgram(): { program: Command; getParsed: () => ParsedArgs | unde
     .command("login")
     .description("Force a new interactive login, discarding any saved session")
     .action(() => {
-      parsed = { command: "login", urls: [], format: "json", imageFormat: "png", images: false, svg: false, quiet: false };
+      parsed = { command: "login", urls: [], format: "json", imageFormat: "png", images: false, icons: false, quiet: false };
     });
   loginCommand.exitOverride();
 
@@ -211,7 +214,7 @@ async function main(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const { command, urls, format, outputPath, imageFormat, images, svg, quiet } = parsed.value;
+  const { command, urls, format, outputPath, imageFormat, images, icons, quiet } = parsed.value;
 
   const core = createFigmaScraperCore({
     sessionStore: new CookieSessionStore(),
@@ -239,7 +242,7 @@ async function main(argv: string[]): Promise<void> {
 
   const resolutions = await resolveAll(core, urls, {
     image: { enabled: images, format: IMAGE_EXPORT_FORMATS[imageFormat] },
-    svg: { enabled: svg },
+    svg: { enabled: icons },
   });
 
   let hadFailure = false;

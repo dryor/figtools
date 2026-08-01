@@ -191,7 +191,7 @@ headed browsers at once.
   `program.parse()` returns, since commander has no single object that
   reports "which subcommand ended up running" ahead of time.
 
-- **`--images`/`--svg` as opt-in flags, not a negatable `--no-`.** Image
+- **`--images`/`--icons` as opt-in flags, not a negatable `--no-`.** Image
   and SVG capture are off by default (`@figtools/core`'s
   `DEFAULT_FETCH_OPTIONS`, see `ADR-figtools-core.md`) — both are a real
   cost (a full Figma export-panel round-trip per node), so the CLI
@@ -199,17 +199,23 @@ headed browsers at once.
   (`--no-x`, defaulting `x` to `true`) is for flags that default *on*;
   since these default *off*, plain boolean flags (`.option("--images", ...,
   false)`) are the correct fit, not a negation of something already true.
-  `--image-format` (`png`/`jpg`/`pdf` — matching the formats Figma's export
-  panel actually offers, dropping the previous `webp`, which wasn't a real
-  export option and silently produced PNG bytes under a `.webp`
-  extension) only has an effect when `--images` is also passed.
+  `--icons` maps to core's `FigmaFetchOptions.svg.enabled` — named "icons"
+  at the CLI boundary because that's what a user is asking for; "svg"
+  stays the accurate name for the underlying Figma export mechanism in
+  `@figtools/core`, where it also covers non-icon exportable shapes
+  (boolean groups, stars, ellipses, polygons, lines — see
+  `canExportAsSvg()`), so renaming it there would be less precise, not
+  more. `--image-format` (`png`/`jpg`/`pdf` — matching the formats Figma's
+  export panel actually offers, dropping the previous `webp`, which
+  wasn't a real export option and silently produced PNG bytes under a
+  `.webp` extension) only has an effect when `--images` is also passed.
 
 - **Relationships:**
   - `DERIVES_FROM` [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
   - `RELATED_TO` [`packages/core/adr/ADR-figtools-core.md`](../../core/adr/ADR-figtools-core.md)
     — this ADR extends the public contract of `FigmaScraperCore` defined
     there, adding `ensureSession()`, and forwards its `FigmaFetchOptions`
-    through `--images`/`--svg`/`--image-format`.
+    through `--images`/`--icons`/`--image-format`.
 
 ## Interfaces
 
@@ -271,9 +277,9 @@ export interface ParsedArgs {
   format: OutputFormat;
   outputPath?: string;
   imageFormat: ImageFormat; // "png" | "jpg" | "pdf"
-  // Off by default (see the "--images/--svg as opt-in flags" decision above).
+  // Off by default (see the "--images/--icons as opt-in flags" decision above).
   images: boolean;
-  svg: boolean;
+  icons: boolean; // --icons; maps to core's FigmaFetchOptions.svg.enabled
   quiet: boolean;
   command?: "login";
 }

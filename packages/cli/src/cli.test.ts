@@ -166,21 +166,21 @@ describe("parseArgs", () => {
     }
   });
 
-  it("svg defaults to false when --svg is omitted", () => {
+  it("icons defaults to false when --icons is omitted", () => {
     const result = parseArgs(["https://www.figma.com/design/ABC123"]);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.svg).toBe(false);
+      expect(result.value.icons).toBe(false);
     }
   });
 
-  it("--svg sets svg to true", () => {
-    const result = parseArgs(["https://www.figma.com/design/ABC123", "--svg"]);
+  it("--icons sets icons to true", () => {
+    const result = parseArgs(["https://www.figma.com/design/ABC123", "--icons"]);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.svg).toBe(true);
+      expect(result.value.icons).toBe(true);
     }
   });
 });

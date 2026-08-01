@@ -65,14 +65,14 @@ figtools "https://www.figma.com/design/ABC123/Mi-Diseno" --quiet
 
 Omite el mensaje `Resolving N URL(s)...` en stderr — útil si estás capturando stdout en un script.
 
-### Incluir imágenes de preview y/o código SVG
+### Incluir imágenes de preview y/o íconos (código SVG)
 
 ```bash
 figtools "https://www.figma.com/design/ABC123/Mi-Diseno" --images --image-format jpg
-figtools "https://www.figma.com/design/ABC123/Mi-Diseno" --svg
+figtools "https://www.figma.com/design/ABC123/Mi-Diseno" --icons
 ```
 
-Capturar una imagen o el SVG de un nodo pasa por la UI de export de Figma, que es lenta en un árbol grande — **ambas están apagadas por default**. Pasá `--images` y/o `--svg` para habilitarlas. `--image-format` (`png`, `jpg`, o `pdf` — los mismos formatos que ofrece el panel de export de Figma) solo tiene efecto cuando también se pasa `--images`.
+Capturar una imagen o el SVG de un ícono de un nodo pasa por la UI de export de Figma, que es lenta en un árbol grande — **ambas están apagadas por default**. Pasá `--images` y/o `--icons` para habilitarlas. `--image-format` (`png`, `jpg`, o `pdf` — los mismos formatos que ofrece el panel de export de Figma) solo tiene efecto cuando también se pasa `--images`.
 
 ## Flags
 
@@ -81,7 +81,7 @@ Capturar una imagen o el SVG de un nodo pasa por la UI de export de Figma, que e
 | `--format` | `json`, `markdown` | `json` | Formato de salida |
 | `--images` | — | `false` | Captura una imagen de preview por cada nodo |
 | `--image-format` | `png`, `jpg`, `pdf` | `png` | Formato de las imágenes capturadas (solo aplica si se pasa `--images`) |
-| `--svg` | — | `false` | Captura el código SVG de los nodos exportables |
+| `--icons` | — | `false` | Captura el código SVG de los nodos exportables (íconos) |
 | `--output` | ruta de archivo o carpeta | stdout (json) / `.` (markdown) | Dónde escribir el resultado |
 | `--quiet` | — | `false` | Omite el mensaje de progreso en stderr |
 | `--help`, `-h` | — | — | Imprime información de uso y termina |
@@ -92,7 +92,7 @@ Capturar una imagen o el SVG de un nodo pasa por la UI de export de Figma, que e
 - **`Error: unsupported extension "<ext>"`**: con `--format markdown`, `--output` siempre se trata como una carpeta. Con `--format json`, solo se acepta una ruta terminada en `.json` o sin extensión (tratada como carpeta); cualquier otra extensión falla explícitamente.
 - **`--format` argument 'xml' is invalid. Allowed choices are json, markdown.`**: un valor de `--format` no soportado se rechaza explícitamente en vez de caer en `json` en silencio.
 - **`--image-format` argument 'gif' is invalid. Allowed choices are png, jpg, pdf.`**: solo se aceptan los formatos que el panel de export de Figma realmente ofrece.
-- **No aparecen imágenes ni SVG en el resultado, aunque el archivo los tiene**: `--images`/`--svg` están apagadas por default (capturarlas tiene un costo real — un round-trip completo de UI por nodo). Pasá `--images` y/o `--svg` explícitamente.
+- **No aparecen imágenes ni íconos en el resultado, aunque el archivo los tiene**: `--images`/`--icons` están apagadas por default (capturarlas tiene un costo real — un round-trip completo de UI por nodo). Pasá `--images` y/o `--icons` explícitamente.
 - **`error: unknown option '--foo'`**: una flag no reconocida se rechaza explícitamente en vez de ser ignorada en silencio.
 - **El proceso termina con código `1` pero imprimió resultados**: significa que al menos una de las URLs falló — revisa el bloque `URLs with errors:` al final de stderr para ver el código (`FigmaScraperErrorCode`) y mensaje de cada una. Ver la tabla de errores en el [README de `@figtools/core`](../core/README.es.md#errores-posibles).
 - **`figtools login` no avanza**: la ventana de Chromium espera indefinidamente a que termines el login manual; confirma que llegaste a `https://www.figma.com/files/...` antes de cerrar la ventana.
