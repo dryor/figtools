@@ -199,16 +199,17 @@ headed browsers at once.
   (`--no-x`, defaulting `x` to `true`) is for flags that default *on*;
   since these default *off*, plain boolean flags (`.option("--images", ...,
   false)`) are the correct fit, not a negation of something already true.
-  `--icons` maps to core's `FigmaFetchOptions.svg.enabled` — named "icons"
-  at the CLI boundary because that's what a user is asking for; "svg"
-  stays the accurate name for the underlying Figma export mechanism in
-  `@figtools/core`, where it also covers non-icon exportable shapes
-  (boolean groups, stars, ellipses, polygons, lines — see
-  `canExportAsSvg()`), so renaming it there would be less precise, not
-  more. `--image-format` (`png`/`jpg`/`pdf` — matching the formats Figma's
-  export panel actually offers, dropping the previous `webp`, which
-  wasn't a real export option and silently produced PNG bytes under a
-  `.webp` extension) only has an effect when `--images` is also passed.
+  `--icons` maps to core's `FigmaFetchOptions.icons.enabled` — "icons"
+  end to end, naming what a caller is asking for at both the CLI and the
+  library boundary. The captured data itself is still SVG markup
+  (`RawFigmaNode.svgCode`), and the capture mechanism
+  (`captureSvgCode`/`canExportAsSvg` in `@figtools/core`) still talks
+  about SVG, since that's literally the format — only the opt-in toggle
+  is named for intent rather than format. `--image-format` (`png`/`jpg`/`pdf`
+  — matching the formats Figma's export panel actually offers, dropping
+  the previous `webp`, which wasn't a real export option and silently
+  produced PNG bytes under a `.webp` extension) only has an effect when
+  `--images` is also passed.
 
 - **Relationships:**
   - `DERIVES_FROM` [`specs/resolve_figma_urls_from_cli.spec`](../specs/resolve_figma_urls_from_cli.spec)
@@ -279,7 +280,7 @@ export interface ParsedArgs {
   imageFormat: ImageFormat; // "png" | "jpg" | "pdf"
   // Off by default (see the "--images/--icons as opt-in flags" decision above).
   images: boolean;
-  icons: boolean; // --icons; maps to core's FigmaFetchOptions.svg.enabled
+  icons: boolean; // --icons; maps to core's FigmaFetchOptions.icons.enabled
   quiet: boolean;
   command?: "login";
 }

@@ -32,9 +32,6 @@ export interface ParsedArgs {
   // Off by default, matching @figtools/core's DEFAULT_FETCH_OPTIONS — a
   // deliberate choice, not an oversight (see ADR-figtools-cli.md).
   images: boolean;
-  // Maps to core's FigmaFetchOptions.svg.enabled — named "icons" at the
-  // CLI boundary since that's what a user asks for; "svg" is the accurate
-  // name for the underlying Figma export mechanism, kept as-is in core.
   icons: boolean;
   quiet: boolean;
   command?: "login";
@@ -242,7 +239,7 @@ async function main(argv: string[]): Promise<void> {
 
   const resolutions = await resolveAll(core, urls, {
     image: { enabled: images, format: IMAGE_EXPORT_FORMATS[imageFormat] },
-    svg: { enabled: icons },
+    icons: { enabled: icons },
   });
 
   let hadFailure = false;

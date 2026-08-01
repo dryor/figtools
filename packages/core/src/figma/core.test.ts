@@ -86,7 +86,7 @@ describe("get_figma_information: Get the nodes of the default page in a Figma de
     expect(fetchDefaultPage).toHaveBeenCalledWith("ABC123", {
       session: VALID_SESSION,
       image: { enabled: false, format: "PNG" },
-      svg: { enabled: false },
+      icons: { enabled: false },
     });
     expect(result.ok).toBe(true);
     const page = (result as { ok: true; value: FigmaPage }).value;
@@ -105,7 +105,7 @@ describe("get_figma_information: Fetch options (image/svg capture)", () => {
     expect(fetchNode).toHaveBeenCalledWith("ABC123", "1:23", {
       session: VALID_SESSION,
       image: { enabled: false, format: "PNG" },
-      svg: { enabled: false },
+      icons: { enabled: false },
     });
   });
 
@@ -116,13 +116,13 @@ describe("get_figma_information: Fetch options (image/svg capture)", () => {
 
     await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23", {
       image: { enabled: true, format: "JPEG" },
-      svg: { enabled: true },
+      icons: { enabled: true },
     });
 
     expect(fetchNode).toHaveBeenCalledWith("ABC123", "1:23", {
       session: VALID_SESSION,
       image: { enabled: true, format: "JPEG" },
-      svg: { enabled: true },
+      icons: { enabled: true },
     });
   });
 });

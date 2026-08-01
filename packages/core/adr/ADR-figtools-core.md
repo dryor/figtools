@@ -88,10 +88,14 @@ and [`specs/get_figma_information.spec`](../specs/get_figma_information.spec).
   interfaces section.
 
 - **Port contract extended with an opt-in capture option, session bundled
-  into the same request object.** Image and SVG capture (`FigmaAssetCapturer`)
-  each cost a full Figma export-panel round-trip per node — real time on a
-  large tree — so `FigmaFetchOptions` (`image.enabled`/`image.format`,
-  `svg.enabled`) lets a caller skip either. Every field is required, not
+  into the same request object.** Image and icon (SVG) capture
+  (`FigmaAssetCapturer`) each cost a full Figma export-panel round-trip
+  per node — real time on a large tree — so `FigmaFetchOptions`
+  (`image.enabled`/`image.format`, `icons.enabled`) lets a caller skip
+  either. `icons`, not `svg`: it names what the caller is asking for; the
+  captured data is still SVG markup (`RawFigmaNode.svgCode`), and the
+  capture mechanism (`captureSvgCode`, `canExportAsSvg`) still talks about
+  SVG, since that's literally the format. Every field is required, not
   optional: an earlier draft made them optional with a
   `opts?.includeImages !== false` check re-derived deep inside
   `playwright-figma-node-source.ts` — the exact anti-pattern *Object
@@ -286,12 +290,12 @@ export type ImageExportFormat = "PNG" | "JPEG" | "PDF";
 
 export interface FigmaFetchOptions {
   image: { enabled: boolean; format: ImageExportFormat };
-  svg: { enabled: boolean };
+  icons: { enabled: boolean };
 }
 
 export const DEFAULT_FETCH_OPTIONS: FigmaFetchOptions = {
   image: { enabled: false, format: "PNG" },
-  svg: { enabled: false },
+  icons: { enabled: false },
 };
 
 // Bundles the session with the fetch options instead of a separate

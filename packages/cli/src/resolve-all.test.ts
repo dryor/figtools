@@ -128,7 +128,7 @@ describe("resolveAll", () => {
 
   it("forwards the given opts to core.resolveUrl for every URL", async () => {
     const core = createFakeCore();
-    const opts = { image: { enabled: true, format: "JPEG" as const }, svg: { enabled: true } };
+    const opts = { image: { enabled: true, format: "JPEG" as const }, icons: { enabled: true } };
     const urls = ["https://www.figma.com/design/AAA", "https://www.figma.com/design/BBB"];
 
     await resolveAll(core, urls, opts);

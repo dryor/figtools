@@ -59,16 +59,16 @@ If the URL doesn't include `node-id`, `resolveUrl` returns the entire active pag
 | `interactiveLogin` | `InteractiveLogin` | Performs the actual login when there's no saved session or it expired. `PlaywrightLogin` opens a real Chromium window for a person to complete it. |
 | `gateway` | `FigmaNodeSource` | Fetches the raw node/page data. `PlaywrightFigmaNodeSource` is the only implementation shipped today — it drives figma.com's own UI with Playwright. |
 
-### Controlling image and SVG capture
+### Controlling image and icon (SVG) capture
 
 ```ts
 const result = await core.resolveUrl(url, {
   image: { enabled: true, format: "JPEG" }, // "PNG" | "JPEG" | "PDF"
-  svg: { enabled: true },
+  icons: { enabled: true },
 });
 ```
 
-`resolveUrl`'s optional second argument merges onto `DEFAULT_FETCH_OPTIONS` — **both `image.enabled` and `svg.enabled` are `false` by default**. Capturing either goes through Figma's own export panel UI, which is a full round-trip per node (worst case tens of seconds on a large tree), so it's opt-in rather than always paid for. When disabled, `image`/`svgCode` come back `null` on every node instead of being fetched.
+`resolveUrl`'s optional second argument merges onto `DEFAULT_FETCH_OPTIONS` — **both `image.enabled` and `icons.enabled` are `false` by default**. Capturing either goes through Figma's own export panel UI, which is a full round-trip per node (worst case tens of seconds on a large tree), so it's opt-in rather than always paid for. When disabled, `image`/`svgCode` come back `null` on every node instead of being fetched. `icons` names what you're asking for; the captured data is still SVG markup, in `svgCode`.
 
 ### Handle an expired session or force a new login
 

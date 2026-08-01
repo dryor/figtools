@@ -59,16 +59,16 @@ Si la URL no trae `node-id`, `resolveUrl` devuelve la página activa completa co
 | `interactiveLogin` | `InteractiveLogin` | Ejecuta el login real cuando no hay sesión guardada o expiró. `PlaywrightLogin` abre una ventana de Chromium real para que una persona lo complete. |
 | `gateway` | `FigmaNodeSource` | Trae los datos crudos del nodo/página. `PlaywrightFigmaNodeSource` es la única implementación incluida hoy — automatiza la UI de figma.com con Playwright. |
 
-### Controlar la captura de imagen y SVG
+### Controlar la captura de imagen e íconos (SVG)
 
 ```ts
 const result = await core.resolveUrl(url, {
   image: { enabled: true, format: "JPEG" }, // "PNG" | "JPEG" | "PDF"
-  svg: { enabled: true },
+  icons: { enabled: true },
 });
 ```
 
-El segundo argumento opcional de `resolveUrl` se combina con `DEFAULT_FETCH_OPTIONS` — **tanto `image.enabled` como `svg.enabled` son `false` por default**. Capturar cualquiera de los dos pasa por el panel de export real de Figma, un round-trip completo de UI por nodo (hasta decenas de segundos en el peor caso en un árbol grande), así que es opt-in en vez de pagarse siempre. Cuando está desactivado, `image`/`svgCode` vuelven `null` en cada nodo en vez de capturarse.
+El segundo argumento opcional de `resolveUrl` se combina con `DEFAULT_FETCH_OPTIONS` — **tanto `image.enabled` como `icons.enabled` son `false` por default**. Capturar cualquiera de los dos pasa por el panel de export real de Figma, un round-trip completo de UI por nodo (hasta decenas de segundos en el peor caso en un árbol grande), así que es opt-in en vez de pagarse siempre. Cuando está desactivado, `image`/`svgCode` vuelven `null` en cada nodo en vez de capturarse. `icons` nombra lo que pedís; lo capturado sigue siendo markup SVG, en `svgCode`.
 
 ### Manejar sesión expirada o forzar un nuevo login
 

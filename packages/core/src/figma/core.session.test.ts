@@ -69,7 +69,7 @@ describe("manage_figma_session: The session expires during a request", () => {
     const gateway = createFakeGateway({ fetchNode });
     const core = createFigmaScraperCore({ sessionStore, interactiveLogin, gateway });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1", { svg: { enabled: true } });
+    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1", { icons: { enabled: true } });
 
     expect(interactiveLogin.calls).toBe(1);
     expect(attempt).toBe(2);
@@ -81,12 +81,12 @@ describe("manage_figma_session: The session expires during a request", () => {
     expect(fetchNode).toHaveBeenNthCalledWith(1, "X", "1:1", {
       session: VALID_SESSION,
       image: { enabled: false, format: "PNG" },
-      svg: { enabled: true },
+      icons: { enabled: true },
     });
     expect(fetchNode).toHaveBeenNthCalledWith(2, "X", "1:1", {
       session: NEW_SESSION,
       image: { enabled: false, format: "PNG" },
-      svg: { enabled: true },
+      icons: { enabled: true },
     });
   });
 });

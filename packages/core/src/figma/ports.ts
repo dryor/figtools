@@ -27,9 +27,9 @@ export type FigmaFetchResult<T> =
   | { status: "incomplete-node-data" };
 
 // The real formats Figma's export panel offers for an image (confirmed in
-// figma-asset-capturer.ts). SVG is a separate capture (svg.enabled below),
-// not a value of this type, since Figma's SVG export doesn't go through
-// the image slot in the panel.
+// figma-asset-capturer.ts). Icons are a separate capture (icons.enabled
+// below), not a value of this type, since Figma's SVG export doesn't go
+// through the image slot in the panel.
 export type ImageExportFormat = "PNG" | "JPEG" | "PDF";
 
 // Every field required, nothing optional — the default lives in exactly
@@ -39,10 +39,14 @@ export type ImageExportFormat = "PNG" | "JPEG" | "PDF";
 // in the implementation hides that default from the object's construction
 // site). Grouped by asset — format only makes sense when image.enabled is
 // true, so nesting it under image makes that dependency structural rather
-// than incidental.
+// than incidental. `icons` (not `svg`): names what the caller is asking
+// for, not the export format underneath it — the captured data is still
+// SVG markup (RawFigmaNode.svgCode), and the capture mechanism
+// (captureSvgCode, canExportAsSvg) still talks about SVG, since that's
+// literally what it is.
 export interface FigmaFetchOptions {
   image: { enabled: boolean; format: ImageExportFormat };
-  svg: { enabled: boolean };
+  icons: { enabled: boolean };
 }
 
 // Deliberately off by default: a library shouldn't pay for (or return)
@@ -50,7 +54,7 @@ export interface FigmaFetchOptions {
 // always-capture behavior opt in explicitly.
 export const DEFAULT_FETCH_OPTIONS: FigmaFetchOptions = {
   image: { enabled: false, format: "PNG" },
-  svg: { enabled: false },
+  icons: { enabled: false },
 };
 
 // Bundles the session together with the fetch options instead of keeping

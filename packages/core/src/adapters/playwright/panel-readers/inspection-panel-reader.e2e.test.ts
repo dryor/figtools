@@ -43,7 +43,7 @@ beforeAll(async () => {
   if (!session) throw new Error('Sin sesión — corre `figtools login` primero');
   // image/svg capture is off by default (DEFAULT_FETCH_OPTIONS) — this
   // suite's "imagen y SVG" tests below need both turned on.
-  const request = { session, image: { enabled: true, format: "PNG" as const }, svg: { enabled: true } };
+  const request = { session, image: { enabled: true, format: "PNG" as const }, icons: { enabled: true } };
   const result = await new PlaywrightFigmaNodeSource().fetchNode(FILE_KEY, NODE_ID, request);
   if (result.status !== "ok") throw new Error(`fetchNode failed: ${result.status}`);
   root = result.value;

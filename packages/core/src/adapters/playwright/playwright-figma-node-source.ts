@@ -42,7 +42,7 @@ export function shouldCaptureImage(request: FigmaFetchRequest): boolean {
 }
 
 export function shouldCaptureSvg(type: string, request: FigmaFetchRequest): boolean {
-  return request.svg.enabled && canExportAsSvg(type);
+  return request.icons.enabled && canExportAsSvg(type);
 }
 
 export class PlaywrightFigmaNodeSource implements FigmaNodeSource {

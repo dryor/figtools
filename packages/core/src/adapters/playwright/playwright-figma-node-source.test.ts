@@ -16,11 +16,11 @@ describe("get_figma_information: Decide when to attempt the hidden-TEXT-child dr
   });
 });
 
-function fetchRequest(overrides: Partial<Pick<FigmaFetchRequest, "image" | "svg">> = {}): FigmaFetchRequest {
+function fetchRequest(overrides: Partial<Pick<FigmaFetchRequest, "image" | "icons">> = {}): FigmaFetchRequest {
   return {
     session: { credential: "cookie-jar" },
     image: { enabled: false, format: "PNG" },
-    svg: { enabled: false },
+    icons: { enabled: false },
     ...overrides,
   };
 }
@@ -36,15 +36,15 @@ describe("get_figma_information: Decide whether to capture a node's image", () =
 });
 
 describe("get_figma_information: Decide whether to capture a node's SVG code", () => {
-  it("doesn't capture when svg.enabled is false, even for an exportable type", () => {
-    expect(shouldCaptureSvg("VECTOR", fetchRequest({ svg: { enabled: false } }))).toBe(false);
+  it("doesn't capture when icons.enabled is false, even for an exportable type", () => {
+    expect(shouldCaptureSvg("VECTOR", fetchRequest({ icons: { enabled: false } }))).toBe(false);
   });
 
-  it("captures when svg.enabled is true and the type is exportable", () => {
-    expect(shouldCaptureSvg("VECTOR", fetchRequest({ svg: { enabled: true } }))).toBe(true);
+  it("captures when icons.enabled is true and the type is exportable", () => {
+    expect(shouldCaptureSvg("VECTOR", fetchRequest({ icons: { enabled: true } }))).toBe(true);
   });
 
-  it("never captures for a non-exportable type, regardless of svg.enabled", () => {
-    expect(shouldCaptureSvg("FRAME", fetchRequest({ svg: { enabled: true } }))).toBe(false);
+  it("never captures for a non-exportable type, regardless of icons.enabled", () => {
+    expect(shouldCaptureSvg("FRAME", fetchRequest({ icons: { enabled: true } }))).toBe(false);
   });
 });
