@@ -1,8 +1,14 @@
 {
   "name": "@figtools/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fetches the data of a Figma node or file (position, size, styles, hierarchy) without the limitations of a free account: no official REST API rate limits, no Dev Mode plan required.",
-  "keywords": ["figma", "figma-api", "scraper", "design-tokens", "playwright"],
+  "keywords": [
+    "figma",
+    "figma-api",
+    "scraper",
+    "design-tokens",
+    "playwright"
+  ],
   "homepage": "https://github.com/dryor/figtools#readme",
   "repository": {
     "type": "git",
@@ -25,7 +31,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "rslib build",
     "test": "vitest run --project unit",
