@@ -52,12 +52,14 @@ salida:
   navegable (`index.md` por nodo con hijos, hasta llegar a archivos `.md`
   hoja).
 
-## Por qué está commiteado
+## El output no se commitea
 
-`empresa-inc/json/` y `empresa-inc/markdown/` quedan versionados en el repo
-como output de referencia generado — una foto de lo que produce
-`@figtools/cli` 0.3.1 para este archivo, sin tener que correrlo ni
-autenticarse de nuevo para ver la forma del resultado.
+`empresa-inc/` está en el `.gitignore`, no queda versionado: solo el JSON de
+este archivo ya pesa más de 20MB, y `@figtools/core` maneja una ventana real
+de Chromium contra figma.com — cuánto tarda una corrida (y si llega a
+terminar) depende de qué tan rápido esa máquina renderiza el editor de
+Figma, pesado en WebGL. Corré `pnpm --filter examples run fetch` vos mismo
+para generarlo localmente.
 
 ## Recursos adicionales
 

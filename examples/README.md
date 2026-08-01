@@ -49,12 +49,13 @@ This runs the CLI twice against the target URL, once per output format:
 - `pnpm run fetch:markdown` → `empresa-inc/markdown/` — a navigable Markdown
   tree (`index.md` per node with children, down to leaf `.md` files).
 
-## Why it's committed
+## Output isn't committed
 
-`empresa-inc/json/` and `empresa-inc/markdown/` are checked into the repo as
-generated reference output — a live snapshot of what `@figtools/cli` 0.3.1
-produces for this file, without having to run it and re-authenticate to see
-the shape of the result.
+`empresa-inc/` is gitignored, not checked in: the JSON output alone is over
+20MB for this file, and `@figtools/core` drives a real headed Chromium
+window against figma.com — how long a run takes (and whether it finishes at
+all) depends on how fast that machine renders Figma's WebGL-heavy editor.
+Run `pnpm --filter examples run fetch` yourself to generate it locally.
 
 ## Additional resources
 
