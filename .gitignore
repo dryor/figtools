@@ -7,3 +7,4 @@ packages/*/dist/
 docs
 docs.json
 .claude/knowledge/
+graphify-out/
