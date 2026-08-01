@@ -1,5 +1,19 @@
 # @figtools/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- ee38fd6: Write each node's captured SVG to a `.svg` file when present, and write markdown output to `slug/index.md` instead of `slug.md` so every node gets its own directory. Add an `--image-format` flag (`png` by default, `svg`) to choose which format gets captured.
+
+### Patch Changes
+
+- Updated dependencies [ee38fd6]
+- Updated dependencies [ee38fd6]
+- Updated dependencies [ee38fd6]
+- Updated dependencies [bec2b2a]
+  - @figtools/core@0.2.0
+
 ## 0.2.1
 
 ### Patch Changes
