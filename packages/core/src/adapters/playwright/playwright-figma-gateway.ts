@@ -1,5 +1,5 @@
 import { chromium, type Page, type Locator } from "playwright";
-import type { FigmaSession, FigmaGateway, FigmaFetchResult } from "../../figma/ports";
+import type { FigmaSession, FigmaNodeSource, FigmaFetchResult } from "../../figma/ports";
 import type { RawFigmaNode } from "../../figma/model";
 import type { PanelReader } from "./panel-readers/panel-reader";
 import { detectPanelMode } from "./panel-readers/detect-panel-mode";
@@ -37,7 +37,7 @@ export function shouldAttemptHiddenTextRead(params: {
   return params.childIds.length === 0 && params.supportsHiddenTextChild;
 }
 
-export class PlaywrightFigmaGateway implements FigmaGateway {
+export class PlaywrightFigmaGateway implements FigmaNodeSource {
   async fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>> {
     const url = `https://www.figma.com/design/${fileKey}?node-id=${nodeId.replace(":", "-")}`;
     return this.withPage(session, url, async (page) => {
@@ -84,6 +84,7 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
           visible: true,
           styles: {},
           image: null,
+          svgCode: null,
           characters: null,
           children,
         },
@@ -230,9 +231,8 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       size: { width, height },
       visible,
       styles,
-      // Requires Figma's image export API; that flow was never designed,
-      // so it's left unresolved for now.
       image: null,
+      svgCode: null,
       characters,
       children,
     };
@@ -308,6 +308,7 @@ export class PlaywrightFigmaGateway implements FigmaGateway {
       visible,
       styles,
       image: null,
+      svgCode: null,
       characters,
       children: [],
     };

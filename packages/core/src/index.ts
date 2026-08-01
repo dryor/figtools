@@ -6,7 +6,7 @@ export type {
   SessionStore,
   InteractiveLogin,
   FigmaFetchResult,
-  FigmaGateway,
+  FigmaNodeSource,
 } from "./figma/ports";
 
 export type {

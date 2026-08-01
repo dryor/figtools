@@ -10,6 +10,7 @@ function toFigmaNode(raw: RawFigmaNode): FigmaNode {
     visible: raw.visible,
     styles: raw.styles,
     image: raw.image,
+    svgCode: raw.svgCode,
     characters: raw.characters,
     children: raw.children.map(toFigmaNode),
   };

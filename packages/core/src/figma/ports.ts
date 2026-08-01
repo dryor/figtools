@@ -26,7 +26,7 @@ export type FigmaFetchResult<T> =
   // adr/ADR-panel-reader-bridge.md).
   | { status: "incomplete-node-data" };
 
-export interface FigmaGateway {
+export interface FigmaNodeSource {
   // node-id only makes sense within a file: fileKey is also needed to be
   // able to navigate to the node's real URL.
   fetchNode(fileKey: string, nodeId: string, session: FigmaSession): Promise<FigmaFetchResult<RawFigmaNode>>;

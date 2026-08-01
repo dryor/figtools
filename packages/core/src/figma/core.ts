@@ -1,12 +1,12 @@
 import type { FigmaScrapeResult, RawFigmaNode } from "./model";
 import type { Result, FigmaScraperError } from "./errors";
-import type { FigmaSession, SessionStore, InteractiveLogin, FigmaGateway, FigmaFetchResult } from "./ports";
+import type { FigmaSession, SessionStore, InteractiveLogin, FigmaNodeSource, FigmaFetchResult } from "./ports";
 import { resolve } from "./build-tree";
 
 export interface FigmaScraperCoreDeps {
   sessionStore: SessionStore;
   interactiveLogin: InteractiveLogin;
-  gateway: FigmaGateway;
+  gateway: FigmaNodeSource;
 }
 
 export interface FigmaScraperCore {
