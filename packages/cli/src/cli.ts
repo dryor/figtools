@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command, CommanderError, InvalidArgumentError } from "commander";
@@ -251,6 +252,21 @@ async function main(argv: string[]): Promise<void> {
   process.exit(hadFailure ? 1 : 0);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// process.argv[1] and import.meta.url can point at the same file through
+// different paths — a package manager (pnpm always, npm/yarn for global
+// installs) resolves the bin to a symlink, while import.meta.url reports
+// the real path Node loaded the module from. Comparing realpaths on both
+// sides keeps the guard true when this file runs as the CLI entry point,
+// whether invoked directly or through a symlinked bin.
+function isMainModule(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   main(process.argv.slice(2));
 }
