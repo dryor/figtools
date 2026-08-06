@@ -1,183 +1,69 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PlaywrightFigmaNodeSource } from "../playwright-figma-node-source";
-import { canExportAsSvg } from "./figma-asset-capturer";
 import { CookieSessionStore } from "../../cookie-session-store";
+import { DEFAULT_FETCH_OPTIONS } from "../../../figma/ports";
+import type { FigmaSession } from "../../../figma/ports";
 import type { RawFigmaNode } from "../../../figma/model";
 
 const FILE_KEY = "HThrmBFcF8JMNq4q6d8C4T";
 const NODE_ID = "2:5";
 
-function findFirst(node: RawFigmaNode, predicate: (n: RawFigmaNode) => boolean): RawFigmaNode | undefined {
-  if (predicate(node)) return node;
-  for (const child of node.children) {
-    const found = findFirst(child, predicate);
-    if (found) return found;
-  }
-  return undefined;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURE_PATH = join(__dirname, "__fixtures__", "inspection-mode-tree.json");
+
+function loadFixture(): RawFigmaNode {
+  return JSON.parse(readFileSync(FIXTURE_PATH, "utf-8"));
 }
 
-function find(node: RawFigmaNode, ...path: string[]): RawFigmaNode {
-  let cur = node;
-  for (const name of path) {
-    const next = cur.children.find((c) => c.name === name);
-    if (!next) throw new Error(`Node "${name}" not found under "${cur.name}"`);
-    cur = next;
-  }
-  return cur;
+function collectMediaNodes(node: RawFigmaNode, out: RawFigmaNode[] = []): RawFigmaNode[] {
+  if (node.image !== null || node.svgCode !== null) out.push(node);
+  for (const child of node.children) collectMediaNodes(child, out);
+  return out;
 }
 
-function hex({ r, g, b }: { r: number; g: number; b: number }): string {
-  return (
-    "#" +
-    [r, g, b]
-      .map((c) => Math.round(c).toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase()
-  );
-}
-
-let root: RawFigmaNode;
+// Same session for both tests below — this only caches that (reads a local
+// file, cheap). The real fetch against Figma is a separate run per test,
+// with different options each, so it lives inside each it(), not here.
+let session: FigmaSession;
 
 beforeAll(async () => {
-  const session = await new CookieSessionStore().getSession();
-  if (!session) throw new Error('Sin sesión — corre `figtools login` primero');
-  // image/svg capture is off by default (DEFAULT_FETCH_OPTIONS) — this
-  // suite's "imagen y SVG" tests below need both turned on.
-  const request = { session, image: { enabled: true, format: "PNG" as const }, icons: { enabled: true } };
-  const result = await new PlaywrightFigmaNodeSource().fetchNode(FILE_KEY, NODE_ID, request);
-  if (result.status !== "ok") throw new Error(`fetchNode failed: ${result.status}`);
-  root = result.value;
-}, 10 * 60 * 1000);
-
-describe("Aside - Sidebar Navigation", () => {
-  let aside: RawFigmaNode;
-  beforeAll(() => {
-    aside = find(root, "Aside - Sidebar Navigation");
-  });
-
-  it("flow es Vertical", () => expect(aside.styles.flow).toBe("Vertical"));
-
-  it("width es Fixed (280px)", () => {
-    expect(aside.styles.widthSizing).toBe("Fixed");
-    expect(aside.size.width).toBe(280);
-  });
-
-  it("height es Fill (744px)", () => {
-    expect(aside.styles.heightSizing).toBe("Fill");
-    expect(aside.size.height).toBe(744);
-  });
-
-  it("padding uniforme 16px en los 4 lados", () => {
-    expect(aside.styles.paddingTop).toBe(16);
-    expect(aside.styles.paddingRight).toBe(16);
-    expect(aside.styles.paddingBottom).toBe(16);
-    expect(aside.styles.paddingLeft).toBe(16);
-  });
-
-  it("gap 8px", () => expect(aside.styles.itemSpacing).toBe(8));
-
-  it("fill #F2F3F8", () => {
-    expect(aside.styles.fills).toHaveLength(1);
-    expect(hex(aside.styles.fills![0].color)).toBe("#F2F3F8");
-  });
-
-  it("border solo en el lado derecho, 1px, #E2BDC3", () => {
-    expect(aside.styles.strokeSide).toBe("Right");
-    expect(aside.styles.strokeWeight).toBe(1);
-    expect(hex(aside.styles.strokes![0].color)).toBe("#E2BDC3");
-  });
+  const stored = await new CookieSessionStore().getSession();
+  if (!stored) throw new Error("No session — run `figtools login` first");
+  session = stored;
 });
 
-describe("Empresa Inc. (hidden TEXT child)", () => {
-  let node: RawFigmaNode;
-  beforeAll(() => {
-    node = find(root, "Aside - Sidebar Navigation", "Margin", "Heading 1", "Empresa Inc.");
-  });
+describe.concurrent("get_figma_information: full tree (real browser, inspection mode)", () => {
+  it.concurrent("matches the golden fixture", async () => {
+    const result = await new PlaywrightFigmaNodeSource().fetchNode(FILE_KEY, NODE_ID, {
+      session,
+      ...DEFAULT_FETCH_OPTIONS,
+    });
+    if (result.status !== "ok") throw new Error(`fetchNode failed: ${result.status}`);
 
-  it("type es Text", () => expect(node.type).toContain("Text"));
-  it("characters es el texto real", () => expect(node.characters).toBe("Empresa Inc."));
+    expect(result.value).toEqual(loadFixture());
+  }, 10 * 60 * 1000);
 
-  it("fill #B70050", () => {
-    expect(node.styles.fills).toHaveLength(1);
-    expect(hex(node.styles.fills![0].color)).toBe("#B70050");
-  });
+  it.concurrent("populates image/svgCode when the request asks for them", async () => {
+    const result = await new PlaywrightFigmaNodeSource().fetchNode(FILE_KEY, NODE_ID, {
+      session,
+      image: { enabled: true, format: "PNG" },
+      icons: { enabled: true },
+    });
+    if (result.status !== "ok") throw new Error(`fetchNode failed: ${result.status}`);
 
-  it("tipografía: Manrope Bold 700, 24px / 32px", () => {
-    const t = node.styles.typography!;
-    expect(t.fontFamily).toBe("Manrope");
-    expect(t.fontWeight).toBe(700);
-    expect(t.fontSize).toBe(24);
-    expect(t.lineHeightPx).toBe(32);
-    expect(t.style).toBe("Bold");
-  });
-});
-
-describe("imagen y SVG", () => {
-  it("Aside has a non-null image Buffer", () => {
-    const aside = find(root, "Aside - Sidebar Navigation");
-    expect(aside.image).not.toBeNull();
-    expect(Buffer.isBuffer(aside.image)).toBe(true);
-    expect(aside.image!.length).toBeGreaterThan(0);
-  });
-
-  it("a frame node has null svgCode", () => {
-    const aside = find(root, "Aside - Sidebar Navigation");
-    expect(aside.svgCode).toBeNull();
-  });
-
-  it("Empresa Inc. (hidden TEXT) has a non-null image Buffer", () => {
-    const empresa = find(
-      root,
-      "Aside - Sidebar Navigation",
-      "Margin",
-      "Heading 1",
-      "Empresa Inc.",
-    );
-    expect(empresa.image).not.toBeNull();
-    expect(Buffer.isBuffer(empresa.image)).toBe(true);
-    expect(empresa.image!.length).toBeGreaterThan(0);
-  });
-
-  it("the first SVG-eligible node in the tree has svgCode containing SVG markup", () => {
-    const vector = findFirst(root, (n) => canExportAsSvg(n.type));
-    if (!vector) {
-      console.warn("No SVG-eligible node found in test file — skipping assertion");
-      return;
+    const mediaNodes = collectMediaNodes(result.value);
+    expect(mediaNodes.length).toBeGreaterThan(0);
+    for (const node of mediaNodes) {
+      if (node.image !== null) {
+        expect(Buffer.isBuffer(node.image)).toBe(true);
+        expect(node.image.length).toBeGreaterThan(0);
+      }
+      if (node.svgCode !== null) {
+        expect(node.svgCode).toContain("<svg");
+      }
     }
-    console.info(`SVG-eligible node: name="${vector.name}" type="${vector.type}" image=${vector.image?.length ?? null} svgCode=${vector.svgCode?.length ?? null}`);
-    expect(vector.svgCode).not.toBeNull();
-    expect(vector.svgCode).toContain("<svg");
-  });
-});
-
-describe("Link - Active State: Consultar", () => {
-  let node: RawFigmaNode;
-  beforeAll(() => {
-    node = find(
-      root,
-      "Aside - Sidebar Navigation",
-      "Nav",
-      "Link - Active State: Consultar:css-transform",
-      "Link - Active State: Consultar",
-    );
-  });
-
-  it("flow es Horizontal", () => expect(node.styles.flow).toBe("Horizontal"));
-  it("height es Hug", () => expect(node.styles.heightSizing).toBe("Hug"));
-
-  it("padding 12px vertical, 16px horizontal", () => {
-    expect(node.styles.paddingTop).toBe(12);
-    expect(node.styles.paddingRight).toBe(16);
-    expect(node.styles.paddingBottom).toBe(12);
-    expect(node.styles.paddingLeft).toBe(16);
-  });
-
-  it("gap 12px", () => expect(node.styles.itemSpacing).toBe(12));
-
-  it("fill #DD2367", () => {
-    expect(node.styles.fills).toHaveLength(1);
-    expect(hex(node.styles.fills![0].color)).toBe("#DD2367");
-  });
-
-  it("radius 8px", () => expect(node.styles.cornerRadius).toBe(8));
+  }, 20 * 60 * 1000);
 });

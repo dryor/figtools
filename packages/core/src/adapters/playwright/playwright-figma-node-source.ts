@@ -322,6 +322,21 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
   // child, or a mix of hidden TEXT and non-TEXT children under a parent
   // with no caret — this mechanism doesn't attempt to distinguish those
   // cases and would only ever capture one child.
+  //
+  // Retried up to 4 times, re-selecting the parent row before each attempt
+  // — confirmed necessary, not just a longer single wait, by comparing
+  // repeated real fetches of the same file/node (2026-08-05, a form with
+  // many single-hidden-child containers: "Label" → "Tipo de Documento",
+  // "Cell" → row text, etc.): bumping the wait from 500ms to 2000ms alone
+  // made no measurable difference — the same containers still came back
+  // empty on some fetches and populated on others, in fully sequential
+  // single-browser runs (ruling out CPU contention from concurrent tests
+  // too). Something about the Enter keypress not registering as "drill into
+  // hidden child" is closer to a coin flip than a slow reaction, so instead
+  // of trusting one Enter to land, the parent gets re-clicked and Enter
+  // re-sent on each attempt — same resilience pattern already used in
+  // expandAndListChildren for the analogous "empty read right after an
+  // action" problem there.
   private async readHiddenTextChild(
     page: Page,
     parentNodeId: string,
@@ -329,19 +344,35 @@ export class PlaywrightFigmaNodeSource implements FigmaNodeSource {
     assetReader: FigmaAssetCapturer,
     request: FigmaFetchRequest
   ): Promise<RawFigmaNode | null> {
-    await page.keyboard.press("Enter");
+    let selectedRow: Locator | undefined;
+    let childId: string | undefined;
 
-    let selectedRow: Locator;
-    let childId: string;
-    try {
-      selectedRow = page.locator('[data-fpl-selected="true"] [data-testid$="-layers-panel-row"]');
-      await selectedRow.waitFor({ timeout: 500 });
-      const testid = await selectedRow.getAttribute("data-testid");
-      if (!testid) return null;
-      childId = testid.replace(/-layers-panel-row$/, "");
-    } catch {
-      return null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) {
+        const parentRow = page.locator(SELECTORS.layerRow(parentNodeId));
+        if ((await parentRow.count()) === 0) return null;
+        try {
+          await parentRow.click({ timeout: 2000 });
+        } catch {
+          continue;
+        }
+      }
+
+      await page.keyboard.press("Enter");
+      try {
+        const row = page.locator('[data-fpl-selected="true"] [data-testid$="-layers-panel-row"]');
+        await row.waitFor({ timeout: 1000 });
+        const testid = await row.getAttribute("data-testid");
+        if (!testid) continue;
+        selectedRow = row;
+        childId = testid.replace(/-layers-panel-row$/, "");
+        break;
+      } catch {
+        continue;
+      }
     }
+
+    if (!selectedRow || !childId) return null;
 
     // If Enter didn't change the selection (childId === parentNodeId), there's
     // no hidden child to read — the same parent row was selected before and
