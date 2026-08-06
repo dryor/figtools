@@ -1,0 +1,304 @@
+{
+  "status": "ok",
+  "value": {
+    "id": "sNTGmFfSPm7S51VBed4PZR",
+    "name": "❐ Thumbnail",
+    "type": "CANVAS",
+    "position": {
+      "x": null,
+      "y": null
+    },
+    "size": {
+      "width": null,
+      "height": null
+    },
+    "visible": true,
+    "styles": {},
+    "image": null,
+    "svgCode": null,
+    "characters": null,
+    "children": [
+      {
+        "id": "1037:1380",
+        "name": "Thumbnail",
+        "type": "Frame",
+        "visible": true,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "size": {
+          "width": 1920,
+          "height": 960
+        },
+        "styles": {
+          "opacity": 100,
+          "cornerRadius": 0,
+          "fills": [
+            {
+              "styleName": "Grayscale/White",
+              "color": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              }
+            }
+          ]
+        },
+        "image": null,
+        "svgCode": null,
+        "characters": null,
+        "children": [
+          {
+            "id": "1037:1396",
+            "name": "Title",
+            "type": "Auto layout",
+            "visible": true,
+            "position": {
+              "x": 160,
+              "y": 136
+            },
+            "size": {
+              "width": 693,
+              "height": 372
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 0
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": []
+          },
+          {
+            "id": "1037:1392",
+            "name": "Designer",
+            "type": "Auto layout",
+            "visible": true,
+            "position": {
+              "x": 160,
+              "y": 824
+            },
+            "size": {
+              "width": 554,
+              "height": 72
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 0
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": [
+              {
+                "id": "1037:1393",
+                "name": "Picture",
+                "type": "Auto layout",
+                "visible": true,
+                "position": {
+                  "x": 100,
+                  "y": 0
+                },
+                "size": {
+                  "width": 72,
+                  "height": 72
+                },
+                "styles": {
+                  "opacity": 100,
+                  "cornerRadius": 2000
+                },
+                "image": null,
+                "svgCode": null,
+                "characters": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "1037:1383",
+            "name": "Gradient",
+            "type": "Group",
+            "visible": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 960,
+              "height": 960
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 0
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": [
+              {
+                "id": "1037:1384",
+                "name": "Mask",
+                "type": "Mask",
+                "visible": true,
+                "position": {
+                  "x": 0,
+                  "y": 0
+                },
+                "size": {
+                  "width": 960,
+                  "height": 960
+                },
+                "styles": {
+                  "opacity": 100,
+                  "cornerRadius": 0
+                },
+                "image": null,
+                "svgCode": null,
+                "characters": null,
+                "children": [
+                  {
+                    "id": "1037:1387",
+                    "name": "Property",
+                    "type": "Auto layout",
+                    "visible": true,
+                    "position": {
+                      "x": 160,
+                      "y": 624
+                    },
+                    "size": {
+                      "width": 647,
+                      "height": 96
+                    },
+                    "styles": {
+                      "opacity": 100,
+                      "cornerRadius": 0
+                    },
+                    "image": null,
+                    "svgCode": null,
+                    "characters": null,
+                    "children": [
+                      {
+                        "id": "1037:1388",
+                        "name": "data_object_FILL0_wght400_GRAD0_opsz48 1",
+                        "type": "Frame",
+                        "visible": true,
+                        "position": {
+                          "x": 96,
+                          "y": 0
+                        },
+                        "size": {
+                          "width": 96,
+                          "height": 96
+                        },
+                        "styles": {
+                          "opacity": 100,
+                          "cornerRadius": 0
+                        },
+                        "image": null,
+                        "svgCode": null,
+                        "characters": null,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "1039:1242",
+        "name": "Image",
+        "type": "Group",
+        "visible": true,
+        "position": {
+          "x": -68,
+          "y": 1319
+        },
+        "size": {
+          "width": 2056,
+          "height": 2048
+        },
+        "styles": {
+          "opacity": 100,
+          "cornerRadius": 12
+        },
+        "image": null,
+        "svgCode": null,
+        "characters": null,
+        "children": [
+          {
+            "id": "1039:1241",
+            "name": "Group 15030",
+            "type": "Group",
+            "visible": true,
+            "position": {
+              "x": 356,
+              "y": 1615
+            },
+            "size": {
+              "width": 360,
+              "height": 1344
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 12
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": []
+          },
+          {
+            "id": "1039:1240",
+            "name": "Group 15029",
+            "type": "Group",
+            "visible": true,
+            "position": {
+              "x": 780,
+              "y": 1319
+            },
+            "size": {
+              "width": 360,
+              "height": 2048
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 12
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": []
+          },
+          {
+            "id": "1039:1239",
+            "name": "Group 15028",
+            "type": "Group",
+            "visible": true,
+            "position": {
+              "x": 1204,
+              "y": 1727
+            },
+            "size": {
+              "width": 360,
+              "height": 1344
+            },
+            "styles": {
+              "opacity": 100,
+              "cornerRadius": 12
+            },
+            "image": null,
+            "svgCode": null,
+            "characters": null,
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,18 +1,31 @@
-import { describe, it, expect } from "vitest";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { describe, it, expect, beforeAll } from "vitest";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PlaywrightFigmaNodeSource } from "./playwright-figma-node-source";
+import { CookieSessionStore } from "../cookie-session-store";
 import { DEFAULT_FETCH_OPTIONS } from "../../figma/ports";
-import type { FigmaFetchRequest } from "../../figma/ports";
+import type { FigmaSession } from "../../figma/ports";
 import type { RawFigmaNode } from "../../figma/model";
 
-function testRequest(): FigmaFetchRequest {
-  return { session: { credential: process.env.FIGMA_TEST_CREDENTIAL! }, ...DEFAULT_FETCH_OPTIONS };
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Golden fixtures, captured from a real passing run against the files below
+// (2026-08-01) — full FigmaFetchResult objects, compared with toEqual
+// instead of field-by-field toBeTruthy()/not.toBeNull() checks (edit-mode-node
+// is the one exception — see stripIds below). Re-capture with writeResult's
+// output below when EDIT_MODE_*/VIEW_MODE_* changes, or when the fixture
+// file's own design changes on purpose.
+const FIXTURES_DIR = join(__dirname, "__fixtures__");
+
+function loadFixture(name: string): unknown {
+  return JSON.parse(readFileSync(join(FIXTURES_DIR, name), "utf-8"));
 }
 
-// There's no "golden" fixture defined yet to compare against real data, so
-// each run leaves the full result on disk (after the asserts, so an already
-// failed test doesn't pollute the result) to inspect it by hand.
+// Each run also leaves the full result on disk (after the assert, so an
+// already-failed comparison doesn't overwrite a previously good dump) —
+// the fixture diff vitest prints on failure is hard to read at this tree
+// size, this file is for opening the two full JSON side by side by hand.
 const OUTPUT_DIR = join(process.cwd(), "tmp", "e2e-output");
 
 function writeResult(fileName: string, result: unknown): void {
@@ -20,156 +33,74 @@ function writeResult(fileName: string, result: unknown): void {
   writeFileSync(join(OUTPUT_DIR, fileName), JSON.stringify(result, null, 2));
 }
 
-// Requires a real session (FIGMA_TEST_CREDENTIAL, obtained by running the
-// PlaywrightLogin test once) and a known Figma file (FIGMA_TEST_FILE_KEY /
-// FIGMA_TEST_NODE_ID) to compare against real data. There's no "golden"
-// fixture defined yet — that's a pending prerequisite, not something this
-// test can resolve on its own.
-const RUN_EDIT_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_FILE_KEY);
+// Editor-permission file — the account behind `figtools login` has edit
+// access here. Same file adr/ADR-layers-virtualization.md's tree-truncation
+// bug was originally reproduced against.
+const EDIT_MODE_FILE_KEY = "sNTGmFfSPm7S51VBed4PZR";
+const EDIT_MODE_NODE_ID = "1017:431";
 
-// Second file, where the FIGMA_TEST_CREDENTIAL session has view-only access
-// (not editor), in an organization that enables the inspect panel for
-// viewers. Confirmed by running against a real session (see
-// adr/ADR-panel-reader-bridge.md): in that case Figma shows a completely
-// different properties panel ("inspection mode", inspectionPropertyRow)
-// than the edit panel (x-y-inputs-row/transform-width/consumed-style-panel).
-const RUN_VIEW_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_VIEW_FILE_KEY);
+// EDIT_MODE_NODE_ID is itself an Instance. Confirmed by comparing two
+// sequential real fetches of it (2026-08-05): every descendant's id
+// changed between fetches (e.g. "1301:843" -> "1302:843", same suffix,
+// prefix incremented by one), while non-id fields stayed identical. Figma
+// assigns each descendant a fresh id scoped to that particular expansion
+// of the instance rather than a permanent one — not a race, reproduced
+// identically across serial, single-session fetches. ids get stripped
+// before comparing this one fixture; every other field (name, type,
+// position, size, styles, structure, ordering) still compares exactly.
+function stripIds(node: RawFigmaNode): RawFigmaNode {
+  return { ...node, id: "", children: node.children.map(stripIds) };
+}
 
-// Third file, still not confirmed against a real session: a user with
-// view-only permission on a file whose organization does NOT enable the
-// inspect panel (see spec: "Get a specific node with no data panel
-// available"). Stays skipped until a real file of that kind is found to
-// validate it — that state can't be forced from the outside.
-const RUN_NO_PANEL_MODE = Boolean(process.env.FIGMA_TEST_CREDENTIAL && process.env.FIGMA_TEST_NO_PANEL_FILE_KEY);
+// View-only file in an organization that enables the inspection panel for
+// viewers. Same fixture inspection-panel-reader.e2e.test.ts already
+// hardcodes, reused here instead of a second dedicated file (see
+// adr/ADR-pending-decisions.md).
+const VIEW_MODE_FILE_KEY = "HThrmBFcF8JMNq4q6d8C4T";
+const VIEW_MODE_NODE_ID = "2:5";
 
-// FIGMA_TEST_HIDDEN_TEXT_NODE_ID is a top-level ancestor to fetch from
-// (the tree needs to be walked down to the target node — see the test's
-// own comment on fetchNode below); FIGMA_TEST_HIDDEN_TEXT_PARENT_ID is the
-// specific descendant known to have a hidden TEXT child (one that never
-// appears in the layers panel tree — see readHiddenTextChild's comment and
-// adr/ADR-pending-decisions.md). Separate env vars from FIGMA_TEST_VIEW_*
-// so this doesn't force every other view-mode test to point at this
-// specific node.
-const RUN_HIDDEN_TEXT_MODE = Boolean(
-  process.env.FIGMA_TEST_CREDENTIAL &&
-    process.env.FIGMA_TEST_HIDDEN_TEXT_FILE_KEY &&
-    process.env.FIGMA_TEST_HIDDEN_TEXT_PARENT_ID
-);
+let session: FigmaSession;
 
-describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get a specific node from a Figma design (real browser, edit mode)", () => {
-  it("fetches real node data, not a stub", async () => {
-    const gateway = new PlaywrightFigmaNodeSource();
-    const request = testRequest();
+beforeAll(async () => {
+  const stored = await new CookieSessionStore().getSession();
+  if (!stored) throw new Error("No session — run `figtools login` first");
+  session = stored;
+});
 
-    const result = await gateway.fetchNode(process.env.FIGMA_TEST_FILE_KEY!, process.env.FIGMA_TEST_NODE_ID!, request);
+describe.concurrent("get_figma_information: Get a specific node from a Figma design (real browser, edit mode)", () => {
+  it.concurrent("matches the golden fixture (edit-mode-node.json)", async () => {
+    const result = await new PlaywrightFigmaNodeSource().fetchNode(EDIT_MODE_FILE_KEY, EDIT_MODE_NODE_ID, {
+      session,
+      ...DEFAULT_FETCH_OPTIONS,
+    });
+    if (result.status !== "ok") throw new Error(`fetchNode failed: ${result.status}`);
 
-    expect(result.status).toBe("ok");
-    if (result.status === "ok") {
-      expect(result.value.id).toBe(process.env.FIGMA_TEST_NODE_ID);
-      expect(result.value.type).toBeTruthy();
-      // The edit panel does expose position/size as direct inputs.
-      expect(result.value.position.x).not.toBeNull();
-      expect(result.value.size.width).not.toBeNull();
-    }
-
+    const fixture = loadFixture("edit-mode-node.json") as { status: string; value: RawFigmaNode };
+    expect(stripIds(result.value)).toEqual(stripIds(fixture.value));
     writeResult("fetch-node-edit-mode.json", result);
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_EDIT_MODE)("get_figma_information: Get the nodes of the default page in a Figma design (real browser, edit mode)", () => {
-  it("fetches the default page with at least one top-level node", async () => {
-    const gateway = new PlaywrightFigmaNodeSource();
-    const request = testRequest();
+describe.concurrent("get_figma_information: Get the nodes of the default page in a Figma design (real browser, edit mode)", () => {
+  it.concurrent("matches the golden fixture (edit-mode-default-page.json)", async () => {
+    const result = await new PlaywrightFigmaNodeSource().fetchDefaultPage(EDIT_MODE_FILE_KEY, {
+      session,
+      ...DEFAULT_FETCH_OPTIONS,
+    });
 
-    const result = await gateway.fetchDefaultPage(process.env.FIGMA_TEST_FILE_KEY!, request);
-
-    expect(result.status).toBe("ok");
-    if (result.status === "ok") {
-      expect(result.value.type).toBe("CANVAS");
-      expect(result.value.children.length).toBeGreaterThan(0);
-    }
-
+    expect(result).toEqual(loadFixture("edit-mode-default-page.json"));
     writeResult("fetch-default-page-edit-mode.json", result);
   }, 10 * 60 * 1000);
 });
 
-describe.skipIf(!RUN_VIEW_MODE)("get_figma_information: Get a specific node from a Figma design with read-only permission (real browser, inspection mode)", () => {
-  it("fetches real node data via InspectionPanelReader, not just name/type/visible", async () => {
-    const gateway = new PlaywrightFigmaNodeSource();
-    const request = testRequest();
+describe.concurrent("get_figma_information: Get a specific node from a Figma design with read-only permission (real browser, inspection mode)", () => {
+  it.concurrent("matches the golden fixture (view-mode-node.json)", async () => {
+    const result = await new PlaywrightFigmaNodeSource().fetchNode(VIEW_MODE_FILE_KEY, VIEW_MODE_NODE_ID, {
+      session,
+      ...DEFAULT_FETCH_OPTIONS,
+    });
 
-    const result = await gateway.fetchNode(process.env.FIGMA_TEST_VIEW_FILE_KEY!, process.env.FIGMA_TEST_VIEW_NODE_ID!, request);
-
-    expect(result.status).toBe("ok");
-    if (result.status === "ok") {
-      expect(result.value.id).toBe(process.env.FIGMA_TEST_VIEW_NODE_ID);
-      expect(result.value.type).toBeTruthy();
-      // The inspection panel exposes Width/Height as plain text, even for
-      // nodes with auto-layout Fill/Hug (unlike the edit panel). Confirmed
-      // by running against a real session, across several nodes (root,
-      // nested, instance, free shape): it never exposes X/Y — position
-      // stays null in this mode always.
-      expect(result.value.position.x).toBeNull();
-      expect(result.value.size.width).not.toBeNull();
-    }
-
+    expect(result).toEqual(loadFixture("view-mode-node.json"));
     writeResult("fetch-node-view-mode.json", result);
-  }, 10 * 60 * 1000);
-});
-
-describe.skipIf(!RUN_NO_PANEL_MODE)("get_figma_information: Get a specific node with no data panel available (real browser)", () => {
-  it("returns incomplete-node-data status without walking the tree", async () => {
-    const gateway = new PlaywrightFigmaNodeSource();
-    const request = testRequest();
-
-    const result = await gateway.fetchNode(process.env.FIGMA_TEST_NO_PANEL_FILE_KEY!, process.env.FIGMA_TEST_NO_PANEL_NODE_ID!, request);
-
-    expect(result.status).toBe("incomplete-node-data");
-
-    writeResult("fetch-node-no-panel-mode.json", result);
-  }, 60 * 1000);
-});
-
-function findNode(node: RawFigmaNode, id: string): RawFigmaNode | null {
-  if (node.id === id) return node;
-  for (const child of node.children) {
-    const found = findNode(child, id);
-    if (found) return found;
-  }
-  return null;
-}
-
-describe.skipIf(!RUN_HIDDEN_TEXT_MODE)("get_figma_information: Get a node whose TEXT child never appears in the layers panel (real browser)", () => {
-  it("adds the hidden TEXT child as a real node via the Enter/Escape drill-down, with its own styles read", async () => {
-    const gateway = new PlaywrightFigmaNodeSource();
-    const request = testRequest();
-
-    // FIGMA_TEST_HIDDEN_TEXT_NODE_ID must be an ancestor of the node with
-    // the hidden TEXT child (e.g. the tree's root), not that node itself —
-    // fetchNode needs the layers panel tree expanded down to it, which
-    // only happens by walking from an ancestor already visible as a
-    // top-level row (same limitation as any other deep node lookup in this
-    // gateway, not specific to this mechanism).
-    const result = await gateway.fetchNode(
-      process.env.FIGMA_TEST_HIDDEN_TEXT_FILE_KEY!,
-      process.env.FIGMA_TEST_HIDDEN_TEXT_NODE_ID!,
-      request
-    );
-
-    expect(result.status).toBe("ok");
-    if (result.status === "ok") {
-      const parent = findNode(result.value, process.env.FIGMA_TEST_HIDDEN_TEXT_PARENT_ID!);
-      expect(parent).not.toBeNull();
-      // The hidden child is added as a real node under children — not
-      // folded into the parent's own characters/styles.
-      expect(parent?.children).toHaveLength(1);
-      const child = parent?.children[0];
-      // Not comparing against the literal string on purpose — the test
-      // file's design content can change independently of this test.
-      expect(child?.characters).toBeTruthy();
-      expect(child?.styles.typography).toBeTruthy();
-    }
-
-    writeResult("fetch-node-hidden-text-mode.json", result);
   }, 10 * 60 * 1000);
 });

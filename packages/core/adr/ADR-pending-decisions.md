@@ -173,6 +173,18 @@ to Pikachu or Name again` — to see whether any read happens against the
 wrong selected row during that backward movement, which is the scenario
 that would actually corrupt data silently.
 
+**Untested candidate cause, not yet compared against the trace above:**
+`readHiddenTextChild` (see "Text content of TEXT nodes" below) also
+changes Figma's active selection mid-recursion — it presses `Enter` to
+drill into a hidden child, then `Escape`, which deselects everything
+before the caller re-clicks the parent row. This runs once per leaf node
+in inspection mode (gated by `shouldAttemptHiddenTextRead`), so it's a
+real candidate for selection state bleeding into a sibling's read during
+the backward-jump window — but no diagnostic has actually checked whether
+the reported jumps coincide with a `readHiddenTextChild` attempt on a
+neighboring leaf. Recorded here so the next session compares the two
+instead of treating them as unrelated by default.
+
 ## E2e tests require too many env vars to be trustworthy as a real check
 
 Not a bug — a gap in confidence. `playwright-figma-node-source.e2e.test.ts`
@@ -216,3 +228,150 @@ Candidate mechanisms, not yet decided:
 
 Deliberately deferred, not implemented now — this session's scope was the
 image/SVG opt-in feature plus documentation, not an e2e fixture redesign.
+
+**Update — resolved for edit mode and view mode, still open for no-panel
+mode.** `playwright-figma-node-source.e2e.test.ts` now hardcodes
+`EDIT_MODE_FILE_KEY`/`EDIT_MODE_NODE_ID`
+(`sNTGmFfSPm7S51VBed4PZR`/`1017:431` — the same file this document's
+tree-truncation entry above was reproduced against, where the account
+behind `figtools login` has editor access) and reuses
+`VIEW_MODE_FILE_KEY`/`VIEW_MODE_NODE_ID`
+(`HThrmBFcF8JMNq4q6d8C4T`/`2:5` — the same fixture
+`inspection-panel-reader.e2e.test.ts` already hardcodes) instead of a second
+dedicated file. Session comes from `CookieSessionStore` (the `figtools
+login` flow), the same pattern `inspection-panel-reader.e2e.test.ts` already
+used — `FIGMA_TEST_CREDENTIAL` and the rest of the `FIGMA_TEST_*` env vars
+are gone from that file, and `playwright-login.e2e.test.ts` no longer gates
+on `FIGMA_E2E_LOGIN` either, so `pnpm test:e2e` runs every suite by default.
+
+The `RUN_HIDDEN_TEXT_MODE` scenario was removed rather than hardcoded: it
+exercised the exact same `readHiddenTextChild` path that
+`inspection-panel-reader.e2e.test.ts`'s own "Empresa Inc. (hidden TEXT
+child)" suite already walks through in its `beforeAll`, with stronger
+field-level assertions (exact color, exact typography) than the generic
+`toBeTruthy()` checks the removed scenario had — keeping both was
+duplicated coverage of the same code path, not two different checks.
+
+No-panel mode stays open: no real file has ever been confirmed to reproduce
+it (see the original note above — this was true from the start, not
+something lost with the env vars). Its `describe` block was deleted rather
+than left skipped, since there was nothing real to hardcode in its place —
+this scenario has no e2e coverage today.
+
+**Update — both files moved to full-tree fixture comparison.**
+`inspection-panel-reader.e2e.test.ts` no longer has the four `describe`
+blocks with per-field asserts described above (Aside, Empresa Inc., imagen
+y SVG, Link Active) — it now runs two independent real fetches against the
+same `FILE_KEY`/`NODE_ID`: one with `DEFAULT_FETCH_OPTIONS`, compared whole
+against a committed fixture (`__fixtures__/inspection-mode-tree.json`) with
+`toEqual`; another with image/icons enabled, which only checks that nodes
+reporting `image`/`svgCode` have real, non-empty content — not compared
+against any fixture, since PNG/SVG output isn't guaranteed byte-stable
+between runs. The "Empresa Inc. (hidden TEXT child)" describe named above no
+longer exists as such, but the mechanism it tested
+(`readHiddenTextChild`) is still exercised implicitly: the fixture was
+captured from a real `fetchNode` call against the same file/node, which
+walks through that same code path to reach the hidden child. `find()`,
+`findFirst()`, `hex()`, and the `canExportAsSvg` import were removed —
+no longer needed once the check stopped depending on locating named nodes
+by hand. `playwright-figma-node-source.e2e.test.ts` was updated the same
+way in spirit: `testRequest()` (re-reading the session per test) was
+replaced by a `beforeAll` that caches the session once, and the stray
+`const gateway = new PlaywrightFigmaNodeSource()` — left over from when the
+class was named `PlaywrightFigmaGateway` — was removed in favor of calling
+`.fetchNode()`/`.fetchDefaultPage()` directly on a new instance. Both files
+mark their `describe`/`it` blocks `.concurrent`, since no test depends on
+another's result.
+
+**Update — `readHiddenTextChild`'s 500ms wait was a real, reproducible bug,
+now fixed with a retry, not a longer wait.** Running the two full-tree e2e
+tests above for real (2026-08-05) surfaced actual data loss, not test
+flakiness: comparing repeated real fetches of the same Empresa Inc.
+file/node found up to 25 single-child containers ("Label", "Cell",
+"Background", "Data" — a form/table with many of these) whose one child
+(a hidden TEXT or Icon) was present in one fetch and silently missing in
+the next, content otherwise identical. First attempt — bumping the
+`selectedRow.waitFor` timeout from 500ms to 2000ms — made no difference
+(still ~10-25 containers wrong per fetch), including in fully sequential,
+single-browser runs, which rules out CPU contention from `.concurrent`
+tests as the cause. The actual fix: retry the whole Enter-press sequence
+up to 4 times, re-clicking the parent row before each attempt, mirroring
+the resilience pattern `expandAndListChildren` already used for the
+analogous "empty read right after an action" problem. Confirmed twice
+against the real file (once serial, once `.concurrent`): two consecutive
+fetches now produce byte-identical trees (177/177 nodes matching). See the
+updated comment on `readHiddenTextChild` in `playwright-figma-node-source.ts`.
+
+The retry is a confirmed, necessary mitigation for that data loss — not a
+fully explained root-cause fix. Why any single Enter-driven attempt is
+unreliable in the first place is still open — see "Why a single
+Enter-drill attempt in `readHiddenTextChild` is unreliable" below.
+
+**New finding — Instance-descendant node ids are not stable across
+fetches, and this is expected Figma behavior, not a bug.** Comparing two
+sequential real fetches of `EDIT_MODE_NODE_ID` (`1017:431`, an `Instance`
+in the Pokédex file) found 75 of 76 descendant ids changed between fetches
+— always the same suffix, prefix incremented by one (e.g. `1301:843` →
+`1302:843`). Non-id fields (name, type, position, size, styles, structure)
+stayed identical. Figma appears to assign descendants of an `Instance` a
+fresh id scoped to that particular expansion rather than a permanent one;
+only the instance's own root id (the one actually requested) stays stable.
+`playwright-figma-node-source.e2e.test.ts`'s edit-mode-node test now
+strips `id` recursively (`stripIds`) before comparing that one fixture,
+same principle as excluding `image`/`svgCode` bytes elsewhere — one field
+known not to be reproducible, verified by shape/consistency instead of
+exact value. The other two node-source scenarios (default page, view mode)
+don't touch an `Instance` root and compare `id` normally.
+
+## Why a single Enter-drill attempt in `readHiddenTextChild` is unreliable
+
+Not fixed — worked around. The retry loop added to `readHiddenTextChild`
+(see the update above and the comment in `playwright-figma-node-source.ts`)
+reliably stops the data loss it was built to fix, confirmed twice against
+the real file (177/177 nodes matching, once serial and once `.concurrent`).
+But *why* a single attempt fails intermittently in the first place was
+never answered — the retry works around it, it doesn't explain it.
+
+One narrower hypothesis was tested and ruled out: that keyboard focus
+drifts off the layers-panel row before `Enter` is pressed, since
+`readSelectedNodeData` reads several fields from the *properties* panel
+immediately before this method runs. If that were the whole story, a
+single explicit click on the parent row right before `Enter` — no retry —
+should have fixed it. Tried exactly that (2026-08-06): one click, one
+`Enter`, no loop. Result was worse than the original 500ms/no-click
+version, not better — 20 changed nodes and the total node count came back
+132-136 across two concurrent fetches, against a confirmed-correct 177.
+So it isn't (only) a focus problem — multiple independent attempts are
+doing real work, not just incidentally adding a click.
+
+What's left unexplained: something about how Figma's own web app responds
+to a synthetic `Enter` keypress for this specific "drill into hidden
+child" interaction is closer to a coin flip than a slow-but-consistent
+reaction. Candidate causes, none confirmed:
+
+- Figma's own event handling for this interaction has genuine internal
+  timing variance, independent of anything in this codebase.
+- Playwright's CDP-level keyboard event dispatch isn't always processed
+  identically to real hardware input for this specific interaction.
+- Something about the previous panel reads leaves Figma's own UI in a
+  state where the next `Enter` is dropped, distinct from a plain focus
+  problem (the ruled-out hypothesis) — not identified.
+
+Answering this needs live DOM/devtools inspection during an in-progress
+failure — repeated black-box before/after fetches can confirm *that* it
+fails and *that* retrying fixes it, but not observe *why* a given attempt
+was dropped. Not something to chase blind against production Figma
+without that tooling attached.
+
+## Color is stored as `{r, g, b}`, not hex
+
+Raised while writing golden-fixture comparisons for the e2e suite above: a
+failing `toEqual` on a color today shows a diff on `color.r`/`color.g`/
+`color.b` as separate numbers, not a recognizable value like `"#F2F3F8"`
+(what the previous per-field assertions, e.g. `hex(node.styles.fills[0]
+.color)`, used to produce). vitest still points at the exact field path
+that changed, but the value itself is harder to eyeball than a hex string.
+
+Not fixed here — changing `FigmaColor` in `packages/core/src/figma/model.ts`
+would touch everything that currently reads `color`, not just these tests.
+Recorded as a candidate for a future session, not decided or scoped yet.
