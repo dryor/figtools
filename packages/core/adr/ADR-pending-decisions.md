@@ -6,41 +6,25 @@ Each entry states what's missing, why it isn't a postmortem (nothing failed
 — it was scoped out or deferred), and the candidate mechanisms considered
 so far, without picking one.
 
-## `image` is declared in the contract but never implemented
+## ~~`image` is declared in the contract but never implemented~~ — resolved
 
-Not a bug in the original decision: the `image: File | null` type was
-declared correctly from the start in
-[ADR-figtools-core](./ADR-figtools-core.md), and both spec scenarios
-("Get a specific node from a Figma design with edit permission" and
-"...with read-only permission" in
-[`specs/get_figma_information.spec`](../specs/get_figma_information.spec))
-explicitly require the returned node to include "a representative image".
-The gap is that this requirement was never resolved with a mechanism
-decision — it was left out of scope from the start.
-
-`PlaywrightFigmaGateway.readNode()` hardcodes `image: null` for every node,
-with the comment: "Requires Figma's image export API; that flow was never
-designed, so it's left unresolved for now." Confirmed by running against a
-real session (`experiments/pokedex/docs.json`): every node, including
-component instances with no children of their own (e.g. an icon inserted
-as an `Instance`), comes back with `image: null` — there's no case where
-the field gets populated.
-
-Candidate mechanisms, not yet decided:
-
-- **Figma Image Export REST API** (`GET /v1/images/:file_key`): requires
-  resolving how to authenticate that call within the current
-  `FigmaSession` (`credential`, today serialized cookies) — Figma's REST
-  API normally expects a personal access token, a different mechanism from
-  the browser session `PlaywrightFigmaGateway` already uses. Returns an
-  image faithful to Figma's actual render (PNG/SVG/PDF), but introduces a
-  second authentication path alongside the Playwright session.
-- **Playwright screenshot of the node's canvas area:** reuses the same
-  browser session already open, with no extra auth mechanism needed.
-  Depends on being able to locate the node's canvas coordinates (zoom,
-  scroll, position) to crop the right region — more fragile to changes in
-  Figma's UI layout than to changes in its API.
-- **Other:** not explored yet.
+Fixed in PR #49 (`feat/figma-image-svg-opt-in`, commits `f8794ab` and
+`fc3a83e`): neither candidate mechanism below was picked — a third option,
+Figma's own export panel (already open in the same Playwright session),
+turned out to work without needing a second auth path or canvas-coordinate
+math. `FigmaAssetCapturer.captureImage()`
+(`panel-readers/figma-asset-capturer.ts`) adds a temporary export setting
+to the selected node's properties panel, downloads it in the requested
+format, then removes the setting to leave the node clean.
+`PlaywrightFigmaNodeSource.readSelectedNodeData()` calls it behind
+`shouldCaptureImage(request)`, gated on the caller opting in via
+`request.image.enabled` — image capture isn't free, so it stays off by
+default rather than paid on every node unconditionally. The same export
+panel is reused for `svgCode` (`captureSvgCode`, gated by
+`request.icons.enabled` and `canExportAsSvg(type)`), which didn't exist
+as a separate requirement when this entry was first written.
+Left here struck through rather than deleted, so the reasoning that led to
+the fix stays discoverable from this file.
 
 ## Text content of TEXT nodes (`characters`) — mechanism confirmed, with known limits
 
