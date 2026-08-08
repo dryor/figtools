@@ -200,7 +200,7 @@ describe("writeAsMarkdownTree", () => {
       id: "1:1",
       name: "Background",
       styles: {
-        fills: [{ styleName: "Grayscale/Background", color: { r: 239, g: 239, b: 239, a: 1 } }],
+        fills: [{ styleName: "Grayscale/Background", color: { hex: "#EFEFEF", a: 1 } }],
       },
       children: [],
     });
@@ -219,7 +219,7 @@ describe("writeAsMarkdownTree", () => {
       name: "HorizontalBorder",
       styles: {
         strokeWeight: 1,
-        strokes: [{ styleName: null, color: { r: 226, g: 189, b: 195, a: 1 } }],
+        strokes: [{ styleName: null, color: { hex: "#E2BDC3", a: 1 } }],
       },
       children: [],
     });
@@ -295,7 +295,7 @@ describe("writeAsMarkdownTree", () => {
       id: "1:1",
       name: "Section",
       styles: {
-        effects: [{ type: "Drop shadow", x: 0, y: 1, blur: 2, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.05 } }],
+        effects: [{ type: "Drop shadow", x: 0, y: 1, blur: 2, spread: 0, color: { hex: "#000000", a: 0.05 } }],
       },
       children: [],
     });

@@ -346,16 +346,3 @@ failure — repeated black-box before/after fetches can confirm *that* it
 fails and *that* retrying fixes it, but not observe *why* a given attempt
 was dropped. Not something to chase blind against production Figma
 without that tooling attached.
-
-## Color is stored as `{r, g, b}`, not hex
-
-Raised while writing golden-fixture comparisons for the e2e suite above: a
-failing `toEqual` on a color today shows a diff on `color.r`/`color.g`/
-`color.b` as separate numbers, not a recognizable value like `"#F2F3F8"`
-(what the previous per-field assertions, e.g. `hex(node.styles.fills[0]
-.color)`, used to produce). vitest still points at the exact field path
-that changed, but the value itself is harder to eyeball than a hex string.
-
-Not fixed here — changing `FigmaColor` in `packages/core/src/figma/model.ts`
-would touch everything that currently reads `color`, not just these tests.
-Recorded as a candidate for a future session, not decided or scoped yet.

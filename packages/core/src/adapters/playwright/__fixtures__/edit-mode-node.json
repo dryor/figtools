@@ -20,9 +20,7 @@
         {
           "styleName": "Identity/Primary",
           "color": {
-            "r": 220,
-            "g": 10,
-            "b": 45,
+            "hex": "#DC0A2D",
             "a": 1
           }
         }
@@ -139,9 +137,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -195,9 +191,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -255,9 +249,7 @@
             {
               "styleName": "Grayscale/White",
               "color": {
-                "r": 255,
-                "g": 255,
-                "b": 255,
+                "hex": "#FFFFFF",
                 "a": 1
               }
             }
@@ -308,9 +300,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -362,9 +352,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -419,9 +407,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -473,9 +459,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -530,9 +514,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -584,9 +566,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -664,9 +644,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -718,9 +696,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -775,9 +751,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -829,9 +803,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -886,9 +858,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -940,9 +910,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1020,9 +988,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1074,9 +1040,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1131,9 +1095,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1185,9 +1147,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1242,9 +1202,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1296,9 +1254,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1376,9 +1332,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1430,9 +1384,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1487,9 +1439,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1541,9 +1491,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1598,9 +1546,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1652,9 +1598,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1732,9 +1676,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1786,9 +1728,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1843,9 +1783,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -1897,9 +1835,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }
@@ -1954,9 +1890,7 @@
                     {
                       "styleName": "Grayscale/White",
                       "color": {
-                        "r": 255,
-                        "g": 255,
-                        "b": 255,
+                        "hex": "#FFFFFF",
                         "a": 1
                       }
                     }
@@ -2008,9 +1942,7 @@
                         {
                           "styleName": "Grayscale/Background",
                           "color": {
-                            "r": 239,
-                            "g": 239,
-                            "b": 239,
+                            "hex": "#EFEFEF",
                             "a": 1
                           }
                         }

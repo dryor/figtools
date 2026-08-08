@@ -9,9 +9,7 @@ export interface Size {
 }
 
 export interface FigmaColor {
-  r: number;
-  g: number;
-  b: number;
+  hex: string; // "#RRGGBB", uppercase
   a: number;
 }
 
