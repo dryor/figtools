@@ -1,5 +1,22 @@
 # @figtools/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- b5e59d3: `FigmaColor` is now `{ hex: string; a: number }` instead of `{ r, g, b, a }` — update any code constructing or reading FigmaColor's r/g/b fields directly.
+- e4c408d: Make image and icon (SVG) capture opt-in instead of always-on. Each capture is a full Figma export-panel round-trip per node — a real cost on large trees — so both now default to off. `FigmaNodeSource.fetchNode`/`fetchDefaultPage` take a single `FigmaFetchRequest` (session + `FigmaFetchOptions`) instead of a separate `session` parameter — update any custom `FigmaNodeSource` implementation or direct caller. `resolveUrl(url, overrides?)` accepts the new options; the CLI adds `--images`/`--icons` flags to opt in.
+
+  Also fixes `--image-format`/`imageFormat`: `"webp"` was never a real option Figma's export panel offers (PNG/JPEG/PDF only) and silently produced PNG bytes under a `.webp` extension — `ImageFormat` is now `"png" | "jpg" | "pdf"`, and image capture actually requests the given format from Figma instead of always capturing PNG regardless of the flag.
+
+### Patch Changes
+
+- Updated dependencies [b5e59d3]
+- Updated dependencies [be16ac5]
+- Updated dependencies [e4c408d]
+- Updated dependencies [cf625cf]
+  - @figtools/core@0.3.0
+
 ## 0.3.1
 
 ### Patch Changes

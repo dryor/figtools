@@ -1,6 +1,6 @@
 {
   "name": "@figtools/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fetches the data of a Figma node or file (position, size, styles, hierarchy) without the limitations of a free account: no official REST API rate limits, no Dev Mode plan required.",
   "keywords": [
     "figma",
