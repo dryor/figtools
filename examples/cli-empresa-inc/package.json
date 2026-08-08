@@ -1,7 +1,7 @@
 {
   "name": "cli-empresa-inc",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "postinstall": "playwright install chromium",
@@ -10,6 +10,6 @@
     "fetch": "pnpm run fetch:json && pnpm run fetch:markdown"
   },
   "dependencies": {
-    "@figtools/cli": "^0.3.1"
+    "@figtools/cli": "^0.4.0"
   }
 }
