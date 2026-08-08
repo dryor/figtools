@@ -166,14 +166,23 @@ function parseCssNumber(text: string | null): number | null {
   return match ? parseFloat(match[0]) : null;
 }
 
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    "#" +
+    [r, g, b]
+      .map((c) => Math.round(c).toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()
+  );
+}
+
 function parseRgbaColor(fill: string | null): FigmaColor | null {
   if (!fill) return null;
   const match = fill.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/);
   if (!match) return null;
+  const [, r, g, b, alpha] = match;
   return {
-    r: parseInt(match[1], 10),
-    g: parseInt(match[2], 10),
-    b: parseInt(match[3], 10),
-    a: match[4] !== undefined ? parseFloat(match[4]) : 1,
+    hex: rgbToHex(parseInt(r, 10), parseInt(g, 10), parseInt(b, 10)),
+    a: alpha !== undefined ? parseFloat(alpha) : 1,
   };
 }

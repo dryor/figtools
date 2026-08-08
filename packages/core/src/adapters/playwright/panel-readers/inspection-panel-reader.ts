@@ -1,5 +1,5 @@
 import type { Locator } from "playwright";
-import type { CommonStyles, FigmaEffect, FigmaPaint, TypographyStyles } from "../../../figma/model";
+import type { CommonStyles, FigmaColor, FigmaEffect, FigmaPaint, TypographyStyles } from "../../../figma/model";
 import type { PanelReader } from "./panel-reader";
 import { LayerRowPanelReader } from "./layer-row-panel-reader";
 
@@ -418,14 +418,9 @@ function parseFirstNumber(text: string | undefined): number | null {
 // Fill/stroke colors don't expose a separate opacity percentage in the
 // panel (confirmed: only the shadow color row does), so `alpha` defaults
 // to full opacity unless the caller reads one.
-function hexToColor(hex: string, alpha = 1): { r: number; g: number; b: number; a: number } {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16),
-    g: parseInt(clean.slice(2, 4), 16),
-    b: parseInt(clean.slice(4, 6), 16),
-    a: alpha,
-  };
+function hexToColor(hex: string, alpha = 1): FigmaColor {
+  const clean = hex.replace("#", "").toUpperCase();
+  return { hex: `#${clean}`, a: alpha };
 }
 
 function parsePercent(text: string | null): number {

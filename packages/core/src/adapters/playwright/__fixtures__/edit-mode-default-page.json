@@ -38,9 +38,7 @@
             {
               "styleName": "Grayscale/White",
               "color": {
-                "r": 255,
-                "g": 255,
-                "b": 255,
+                "hex": "#FFFFFF",
                 "a": 1
               }
             }

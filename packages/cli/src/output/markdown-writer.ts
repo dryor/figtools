@@ -12,21 +12,17 @@ function isFigmaPage(result: FigmaScrapeResult): result is FigmaPage {
   return "nodes" in result;
 }
 
-function colorToHex({ r, g, b, a }: FigmaPaint["color"]): string {
-  const hex = [r, g, b]
-    .map((c) => Math.round(c).toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-  return a < 1 ? `#${hex} ${Math.round(a * 100)}%` : `#${hex}`;
+function formatColor({ hex, a }: FigmaPaint["color"]): string {
+  return a < 1 ? `${hex} ${Math.round(a * 100)}%` : hex;
 }
 
 function formatPaint(paint: FigmaPaint): string {
-  const hex = colorToHex(paint.color);
+  const hex = formatColor(paint.color);
   return paint.styleName ? `${hex} (${paint.styleName})` : hex;
 }
 
 function formatEffect(effect: FigmaEffect): string {
-  const color = effect.color ? colorToHex(effect.color) : "";
+  const color = effect.color ? formatColor(effect.color) : "";
   return [
     effect.type,
     `x=${effect.x}`,
