@@ -16,7 +16,7 @@ export async function resolveAll(
     return urls.map((url) => ({ url, result: sessionResult }));
   }
 
-  const settled = await Promise.allSettled(urls.map((url) => core.resolveUrl(url, opts)));
+  const settled = await Promise.allSettled(urls.map((url) => core.getDesign(url, opts)));
 
   return urls.map((url, i) => {
     const outcome = settled[i];

@@ -22,7 +22,7 @@ export interface FigmaScraperCore {
   // overrides merges onto DEFAULT_FETCH_OPTIONS (image/svg capture off by
   // default) — see ports.ts for why the fields are required past this
   // one boundary.
-  resolveUrl(url: string, overrides?: Partial<FigmaFetchOptions>): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
+  getDesign(url: string, overrides?: Partial<FigmaFetchOptions>): Promise<Result<FigmaScrapeResult, FigmaScraperError>>;
   reauthenticate(): Promise<Result<FigmaSession, FigmaScraperError>>;
   // Triggers login only if there's no saved session. Unlike
   // reauthenticate(), it doesn't force a new login if the current session
@@ -80,7 +80,7 @@ export function createFigmaScraperCore(deps: FigmaScraperCoreDeps): FigmaScraper
   }
 
   return {
-    async resolveUrl(url, overrides) {
+    async getDesign(url, overrides) {
       const parsedResult = parseFigmaUrl(url);
       if (!parsedResult.ok) return parsedResult;
       const parsed = parsedResult.value;

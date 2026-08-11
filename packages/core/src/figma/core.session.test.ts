@@ -18,7 +18,7 @@ describe("manage_figma_session: Log in interactively with no previous session", 
     const gateway = createFakeGateway({ fetchNode: () => ({ status: "ok", value: rawNode }) });
     const core = createFigmaScraperCore({ sessionStore, interactiveLogin, gateway });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1");
+    const result = await core.getDesign("https://www.figma.com/design/X?node-id=1-1");
 
     expect(interactiveLogin.calls).toBe(1);
     expect(sessionStore.current).toEqual(VALID_SESSION);
@@ -33,7 +33,7 @@ describe("manage_figma_session: Reuse an existing session", () => {
     const gateway = createFakeGateway({ fetchNode: () => ({ status: "ok", value: rawNode }) });
     const core = createFigmaScraperCore({ sessionStore, interactiveLogin, gateway });
 
-    await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1");
+    await core.getDesign("https://www.figma.com/design/X?node-id=1-1");
 
     expect(interactiveLogin.calls).toBe(0);
   });
@@ -69,7 +69,7 @@ describe("manage_figma_session: The session expires during a request", () => {
     const gateway = createFakeGateway({ fetchNode });
     const core = createFigmaScraperCore({ sessionStore, interactiveLogin, gateway });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/X?node-id=1-1", { icons: { enabled: true } });
+    const result = await core.getDesign("https://www.figma.com/design/X?node-id=1-1", { icons: { enabled: true } });
 
     expect(interactiveLogin.calls).toBe(1);
     expect(attempt).toBe(2);
