@@ -49,7 +49,7 @@ function parseFigmaUrl(url: string): Result<ParsedFigmaUrl, FigmaScraperError> {
     return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "The URL isn't valid" } };
   }
 
-  if (!parsed.hostname.endsWith("figma.com")) {
+  if (parsed.hostname !== "figma.com" && !parsed.hostname.endsWith(".figma.com")) {
     return { ok: false, error: { code: "VALIDATION_NOT_FIGMA_URL", message: "The URL doesn't belong to Figma" } };
   }
 
