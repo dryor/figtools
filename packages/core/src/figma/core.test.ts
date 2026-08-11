@@ -170,7 +170,7 @@ describe("get_figma_information: Reject a URL that isn't from Figma", () => {
   it("rejects a host that merely ends with figma.com", async () => {
     const { core } = makeCore();
 
-    const result = await core.resolveUrl("https://evil-figma.com/design/ABC123");
+    const result = await core.getDesign("https://evil-figma.com/design/ABC123");
 
     expect(result.ok).toBe(false);
     expect((result as { ok: false; error: { code: string } }).error.code).toBe("VALIDATION_NOT_FIGMA_URL");
