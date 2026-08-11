@@ -42,7 +42,7 @@ describe("get_figma_information: Get a specific node from a Figma design", () =>
       gateway: createFakeGateway({ fetchNode: () => ({ status: "ok", value: raw }) }),
     });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23");
+    const result = await core.getDesign("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23");
 
     expect(result.ok).toBe(true);
     const node = (result as { ok: true; value: FigmaNode }).value;
@@ -62,7 +62,7 @@ describe("get_figma_information: Get the nodes of a page in a Figma design", () 
       gateway: createFakeGateway({ fetchNode: () => ({ status: "ok", value: raw }) }),
     });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=0-1");
+    const result = await core.getDesign("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=0-1");
 
     expect(result.ok).toBe(true);
     const page = (result as { ok: true; value: FigmaPage }).value;
@@ -81,7 +81,7 @@ describe("get_figma_information: Get the nodes of the default page in a Figma de
       gateway: createFakeGateway({ fetchDefaultPage }),
     });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno");
+    const result = await core.getDesign("https://www.figma.com/design/ABC123/Mi-Diseno");
 
     expect(fetchDefaultPage).toHaveBeenCalledWith("ABC123", {
       session: VALID_SESSION,
@@ -100,7 +100,7 @@ describe("get_figma_information: Fetch options (image/svg capture)", () => {
     const fetchNode = vi.fn(() => ({ status: "ok" as const, value: raw }));
     const { core } = makeCore({ gateway: createFakeGateway({ fetchNode }) });
 
-    await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23");
+    await core.getDesign("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23");
 
     expect(fetchNode).toHaveBeenCalledWith("ABC123", "1:23", {
       session: VALID_SESSION,
@@ -114,7 +114,7 @@ describe("get_figma_information: Fetch options (image/svg capture)", () => {
     const fetchNode = vi.fn(() => ({ status: "ok" as const, value: raw }));
     const { core } = makeCore({ gateway: createFakeGateway({ fetchNode }) });
 
-    await core.resolveUrl("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23", {
+    await core.getDesign("https://www.figma.com/design/ABC123/Mi-Diseno?node-id=1-23", {
       image: { enabled: true, format: "JPEG" },
       icons: { enabled: true },
     });
@@ -133,7 +133,7 @@ describe("get_figma_information: Nonexistent or inaccessible node or file", () =
       gateway: createFakeGateway({ fetchNode: () => ({ status: "not-found-or-no-access" }) }),
     });
 
-    const result = await core.resolveUrl("https://www.figma.com/design/DOESNOTEXIST?node-id=1-1");
+    const result = await core.getDesign("https://www.figma.com/design/DOESNOTEXIST?node-id=1-1");
 
     expect(result).toEqual({
       ok: false,
@@ -148,7 +148,7 @@ describe("get_figma_information: Reject an empty URL", () => {
     const fetchDefaultPage = vi.fn();
     const { core } = makeCore({ gateway: createFakeGateway({ fetchNode, fetchDefaultPage }) });
 
-    const result = await core.resolveUrl("");
+    const result = await core.getDesign("");
 
     expect(result.ok).toBe(false);
     expect((result as { ok: false; error: { code: string } }).error.code).toBe("VALIDATION_EMPTY_URL");
@@ -161,7 +161,7 @@ describe("get_figma_information: Reject a URL that isn't from Figma", () => {
   it("returns a validation error without calling the gateway", async () => {
     const { core } = makeCore();
 
-    const result = await core.resolveUrl("https://www.google.com");
+    const result = await core.getDesign("https://www.google.com");
 
     expect(result.ok).toBe(false);
     expect((result as { ok: false; error: { code: string } }).error.code).toBe("VALIDATION_NOT_FIGMA_URL");
