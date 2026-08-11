@@ -1,5 +1,11 @@
 # cli-empresa-inc
 
+## 0.0.2
+
+### Patch Changes
+
+- @figtools/cli@0.4.1
+
 ## 0.0.1
 
 ### Patch Changes
